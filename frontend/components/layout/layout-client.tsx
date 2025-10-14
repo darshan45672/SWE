@@ -13,11 +13,11 @@ interface LayoutClientProps {
 }
 
 export function LayoutClient({ children }: LayoutClientProps) {
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false); // Default closed on mobile
 
   return (
     <WorkspaceProvider>
-      <SidebarProvider defaultOpen={true}>
+      <SidebarProvider defaultOpen={false}>
         <div className="flex h-screen w-full overflow-hidden">
           {/* Left Sidebar */}
           <AppSidebar />
@@ -31,19 +31,36 @@ export function LayoutClient({ children }: LayoutClientProps) {
             />
 
             {/* Content Grid: Kanban Board + Chat */}
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden relative">
               {/* Kanban Board (Main Content - Wider) */}
               <div className="flex-1 overflow-hidden">{children}</div>
 
-              {/* Chat Panel (Right Column) - Collapsible */}
+              {/* Chat Panel (Right Column) - Sidebar on desktop, overlay on mobile */}
+              {/* Desktop: Shows as side panel */}
               <div
                 className={cn(
-                  "relative border-l bg-background transition-all duration-300 ease-in-out",
+                  "relative border-l bg-background transition-all duration-300 ease-in-out hidden md:block",
                   isChatOpen ? "w-80 xl:w-96" : "w-0"
                 )}
               >
                 {isChatOpen && <ChatPanel />}
               </div>
+
+              {/* Mobile: Shows as overlay */}
+              {isChatOpen && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                  {/* Backdrop */}
+                  <div 
+                    className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                    onClick={() => setIsChatOpen(false)}
+                  />
+                  
+                  {/* Chat Panel */}
+                  <div className="absolute right-0 top-0 h-full w-[85vw] max-w-sm border-l bg-background shadow-lg animate-in slide-in-from-right">
+                    <ChatPanel />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

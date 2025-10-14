@@ -129,10 +129,21 @@ export function KanbanBoard() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid h-full grid-cols-3 gap-4 p-4">
-        {board.columns.map((column) => (
-          <KanbanColumn key={column.id} column={column} />
-        ))}
+      {/* Mobile: 3 rows with horizontal scroll, Desktop: 3 columns grid */}
+      <div className="h-full overflow-y-auto p-3 sm:p-4">
+        {/* Mobile Layout: Stack columns as rows */}
+        <div className="flex flex-col gap-3 sm:gap-4 lg:hidden">
+          {board.columns.map((column) => (
+            <KanbanColumn key={column.id} column={column} isMobileRow />
+          ))}
+        </div>
+        
+        {/* Desktop Layout: Grid columns */}
+        <div className="hidden lg:grid lg:grid-cols-3 gap-4 h-full">
+          {board.columns.map((column) => (
+            <KanbanColumn key={column.id} column={column} />
+          ))}
+        </div>
       </div>
 
       <DragOverlay>

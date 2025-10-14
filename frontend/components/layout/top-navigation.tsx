@@ -24,9 +24,9 @@ interface TopNavigationProps {
 export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
+      <div className="flex h-14 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4 lg:px-6">
         {/* Left Section: Sidebar Toggle + Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <SidebarTrigger />
           <div className="flex items-center gap-2 font-semibold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -36,9 +36,9 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
           </div>
         </div>
 
-        {/* Center Section: Search Bar */}
-        <div className="flex-1 max-w-2xl mx-4">
-          <div className="relative">
+        {/* Center Section: Search Bar - Hidden on mobile */}
+        <div className="hidden md:flex flex-1 max-w-2xl mx-4">
+          <div className="relative w-full">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -49,11 +49,17 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
         </div>
 
         {/* Right Section: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Search Icon on Mobile */}
+          <Button variant="ghost" size="icon" className="md:hidden">
+            <Search className="h-5 w-5" />
+            <span className="sr-only">Search</span>
+          </Button>
+
           {/* Theme Switcher */}
           <ThemeSwitcher />
 
-          {/* Chat Toggle */}
+          {/* Chat Toggle - Now visible on mobile */}
           <Button 
             variant={isChatOpen ? "default" : "ghost"} 
             size="icon"

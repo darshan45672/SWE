@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { IssueCard } from "./issue-card";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 interface KanbanColumnProps {
   column: Column;
+  isMobileRow?: boolean;
 }
 
 const columnColors = {
@@ -25,11 +26,65 @@ const columnBadgeColors = {
   done: "bg-green-500/10 text-green-600",
 };
 
-export function KanbanColumn({ column }: KanbanColumnProps) {
+export function KanbanColumn({ column, isMobileRow = false }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
 
+  // Mobile Row Layout: Horizontal scrolling issues
+  if (isMobileRow) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col rounded-lg border-2 bg-muted/50 transition-colors",
+          columnColors[column.id],
+          isOver && "border-primary bg-primary/5"
+        )}
+      >
+        {/* Column Header */}
+        <div className="flex items-center justify-between border-b bg-background/50 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm">{column.title}</h3>
+            <Badge
+              variant="secondary"
+              className={cn("h-5 px-1.5 text-xs", columnBadgeColors[column.id])}
+            >
+              {column.issues.length}
+            </Badge>
+          </div>
+          <CreateIssueDialog defaultStatus={column.id} />
+        </div>
+
+        {/* Mobile Row Content: Horizontal Scroll */}
+        <div className="overflow-x-auto overflow-y-hidden">
+          <div
+            ref={setNodeRef}
+            className="flex gap-3 p-3 min-w-max"
+          >
+            <SortableContext
+              items={column.issues.map((issue) => issue.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {column.issues.map((issue) => (
+                <div key={issue.id} className="w-[280px] sm:w-[320px] shrink-0">
+                  <IssueCard issue={issue} />
+                </div>
+              ))}
+            </SortableContext>
+
+            {column.issues.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 px-12 text-center text-muted-foreground">
+                <p className="text-sm">No issues</p>
+                <p className="text-xs">Drag issues here or create new ones</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Column Layout: Vertical scrolling issues
   return (
     <div
       className={cn(
