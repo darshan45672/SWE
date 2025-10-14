@@ -2,11 +2,10 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { IssueCard } from "./issue-card";
+import { CreateIssueDialog } from "./create-issue-dialog";
 import { Column } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -50,10 +49,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
             {column.issues.length}
           </Badge>
         </div>
-        <Button size="icon" variant="ghost" className="h-7 w-7">
-          <Plus className="h-4 w-4" />
-          <span className="sr-only">Add issue</span>
-        </Button>
+        <CreateIssueDialog defaultStatus={column.id} />
       </div>
 
       {/* Column Content */}

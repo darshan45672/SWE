@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import { Workspace, mockWorkspaces } from "@/types/workspace";
-import { Board } from "@/types";
-import { mockBoard } from "@/lib/mock-data";
+import { Board, Issue, IssueStatus, Priority, IssueType, User } from "@/types";
+import { mockBoard, mockUsers } from "@/lib/mock-data";
 
 interface Project {
   id: string;
@@ -12,6 +12,17 @@ interface Project {
   description?: string;
   workspaceId: string;
   board: Board;
+}
+
+interface CreateIssueData {
+  title: string;
+  description: string;
+  type: IssueType;
+  priority: Priority;
+  status: IssueStatus;
+  assigneeId?: string;
+  dueDate?: Date;
+  tags: string[];
 }
 
 interface WorkspaceContextType {
@@ -23,6 +34,7 @@ interface WorkspaceContextType {
   switchProject: (projectId: string) => void;
   addProject: (project: Omit<Project, "board">) => void;
   addWorkspace: (workspace: Workspace) => void;
+  addIssue: (issueData: CreateIssueData) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
@@ -136,6 +148,62 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentProject(null); // No projects in new workspace yet
   };
 
+  const addIssue = (issueData: CreateIssueData) => {
+    if (!currentProject) return;
+
+    // Find the assignee user object
+    const assignee = issueData.assigneeId
+      ? mockUsers.find((u) => u.id === issueData.assigneeId)
+      : undefined;
+
+    // Create the new issue
+    const newIssue: Issue = {
+      id: `issue-${Date.now()}`,
+      title: issueData.title,
+      description: issueData.description,
+      status: issueData.status,
+      priority: issueData.priority,
+      type: issueData.type,
+      assignee,
+      reporter: mockUsers[0], // Default to first user as reporter
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      dueDate: issueData.dueDate,
+      tags: issueData.tags,
+      comments: [],
+    };
+
+    // Update the current project's board
+    const updatedBoard: Board = {
+      ...currentProject.board,
+      columns: currentProject.board.columns.map((column) => {
+        if (column.id === issueData.status) {
+          return {
+            ...column,
+            issues: [...column.issues, newIssue],
+          };
+        }
+        return column;
+      }),
+    };
+
+    // Update the project with the new board
+    const updatedProject: Project = {
+      ...currentProject,
+      board: updatedBoard,
+    };
+
+    // Update the projects list
+    setAllProjects(
+      allProjects.map((p) =>
+        p.id === currentProject.id ? updatedProject : p
+      )
+    );
+
+    // Update the current project
+    setCurrentProject(updatedProject);
+  };
+
   // Get projects for current workspace
   const projects = allProjects.filter(
     (p) => p.workspaceId === currentWorkspace.id
@@ -152,6 +220,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         switchProject,
         addProject,
         addWorkspace,
+        addIssue,
       }}
     >
       {children}
