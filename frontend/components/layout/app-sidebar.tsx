@@ -21,6 +21,8 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
+import { ProjectSwitcher } from "@/components/workspace/project-switcher";
 
 interface NavItem {
   title: string;
@@ -53,25 +55,20 @@ const issueFilters: NavItem[] = [
   },
 ];
 
-const projects: NavItem[] = [
-  {
-    title: "Main Project",
-    icon: FolderKanban,
-    isActive: true,
-  },
-];
-
 export function AppSidebar() {
   const [activeFilter, setActiveFilter] = useState("All Issues");
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-3 py-2">
-        <div className="flex items-center gap-2">
-          <FolderKanban className="h-5 w-5" />
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+          <FolderKanban className="h-5 w-5 shrink-0" />
           <span className="font-semibold group-data-[collapsible=icon]:hidden">
             Workspace
           </span>
+        </div>
+        <div className="mt-3 group-data-[collapsible=icon]:hidden">
+          <WorkspaceSwitcher className="w-full" />
         </div>
       </SidebarHeader>
 
@@ -80,19 +77,9 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Projects</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {projects.map((project) => (
-                <SidebarMenuItem key={project.title}>
-                  <SidebarMenuButton
-                    isActive={project.isActive}
-                    tooltip={project.title}
-                  >
-                    <project.icon className="h-4 w-4" />
-                    <span>{project.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <div className="group-data-[collapsible=icon]:hidden">
+              <ProjectSwitcher />
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
 

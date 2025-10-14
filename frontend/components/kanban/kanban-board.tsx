@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -15,14 +15,21 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { KanbanColumn } from "./kanban-column";
 import { IssueCard } from "./issue-card";
 import { Board, Issue, IssueStatus } from "@/types";
+import { useWorkspace } from "@/contexts/workspace-context";
 
-interface KanbanBoardProps {
-  initialBoard: Board;
-}
-
-export function KanbanBoard({ initialBoard }: KanbanBoardProps) {
-  const [board, setBoard] = useState(initialBoard);
+export function KanbanBoard() {
+  const { currentProject } = useWorkspace();
+  const [board, setBoard] = useState<Board | null>(
+    currentProject?.board || null
+  );
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
+
+  // Update board when project changes
+  useEffect(() => {
+    if (currentProject?.board) {
+      setBoard(currentProject.board);
+    }
+  }, [currentProject]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -31,6 +38,14 @@ export function KanbanBoard({ initialBoard }: KanbanBoardProps) {
       },
     })
   );
+
+  if (!board || !currentProject) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">No project selected</p>
+      </div>
+    );
+  }
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;

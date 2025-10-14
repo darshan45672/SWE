@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { mockBoard } from "@/lib/mock-data";
 
 // Dynamically import KanbanBoard with no SSR to avoid hydration issues with @dnd-kit
 const KanbanBoard = dynamic(
@@ -24,7 +23,7 @@ export default function Home() {
     <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden">
       {/* Kanban Board - Main Content (Wider Column) */}
       <div className="flex-1 overflow-hidden">
-        <KanbanBoard initialBoard={mockBoard} />
+        <KanbanBoard />
       </div>
     </div>
   );

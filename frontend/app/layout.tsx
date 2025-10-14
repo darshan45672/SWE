@@ -10,6 +10,7 @@ import { ChatPanel } from "@/components/chat/chat-panel";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WorkspaceProvider } from "@/contexts/workspace-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,10 +34,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SidebarProvider defaultOpen={true}>
-          <div className="flex h-screen w-full overflow-hidden">
-            {/* Left Sidebar */}
-            <AppSidebar />
+        <WorkspaceProvider>
+          <SidebarProvider defaultOpen={true}>
+            <div className="flex h-screen w-full overflow-hidden">
+              {/* Left Sidebar */}
+              <AppSidebar />
 
             {/* Main Content Area */}
             <div className="flex flex-1 flex-col overflow-hidden">
@@ -76,6 +78,7 @@ export default function RootLayout({
             </div>
           </div>
         </SidebarProvider>
+        </WorkspaceProvider>
       </body>
     </html>
   );
