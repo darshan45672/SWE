@@ -10,6 +10,8 @@ import {
   ListTodo,
   ChevronRight,
   Clock,
+  UserCircle,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -155,6 +157,37 @@ export function AppSidebar() {
             <div className="group-data-[collapsible=icon]:hidden px-2">
               <ProjectSwitcher />
             </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Account Section */}
+        <SidebarGroup className="py-2">
+          <SidebarGroupLabel className="px-2 text-xs font-semibold text-sidebar-foreground/70">
+            Account
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="group-data-[collapsible=icon]:hidden">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <div
+                  className="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => router.push("/profile")}
+                >
+                  <UserCircle className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">Profile</span>
+                </div>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <div
+                  className="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => router.push("/settings")}
+                >
+                  <Settings className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">Settings</span>
+                </div>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 

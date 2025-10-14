@@ -9,6 +9,14 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
+  bio?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  timezone?: string;
+  language?: string;
+  company?: string;
+  jobTitle?: string;
 }
 
 export interface Issue {

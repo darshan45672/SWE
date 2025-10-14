@@ -46,7 +46,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function CreateProjectDialog() {
+interface CreateProjectDialogProps {
+  variant?: "sidebar" | "empty";
+}
+
+export function CreateProjectDialog({ variant = "sidebar" }: CreateProjectDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { currentWorkspace, addProject } = useWorkspace();
@@ -99,13 +103,20 @@ export function CreateProjectDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-sm font-normal"
-        >
-          <Plus className="h-4 w-4" />
-          Create project
-        </Button>
+        {variant === "empty" ? (
+          <Button size="lg" className="mt-4">
+            <Plus className="mr-2 h-5 w-5" />
+            Create New Project
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sm font-normal"
+          >
+            <Plus className="h-4 w-4" />
+            Create project
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
