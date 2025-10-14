@@ -35,6 +35,8 @@ interface WorkspaceContextType {
   addProject: (project: Omit<Project, "board">) => void;
   addWorkspace: (workspace: Workspace) => void;
   addIssue: (issueData: CreateIssueData) => void;
+  updateIssue: (issueId: string, issueData: Partial<CreateIssueData>) => void;
+  deleteIssue: (issueId: string) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
@@ -204,6 +206,107 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentProject(updatedProject);
   };
 
+  const updateIssue = (issueId: string, issueData: Partial<CreateIssueData>) => {
+    if (!currentProject) return;
+
+    // Find the assignee user object if assigneeId is provided
+    const assignee = issueData.assigneeId
+      ? mockUsers.find((u) => u.id === issueData.assigneeId)
+      : undefined;
+
+    // Update the current project's board
+    const updatedBoard: Board = {
+      ...currentProject.board,
+      columns: currentProject.board.columns.map((column) => {
+        // Remove issue from old column if status changed
+        const issuesWithoutTarget = column.issues.filter(
+          (issue) => issue.id !== issueId
+        );
+
+        // Find the issue to update
+        const issueToUpdate = currentProject.board.columns
+          .flatMap((col) => col.issues)
+          .find((issue) => issue.id === issueId);
+
+        if (!issueToUpdate) return column;
+
+        // Create updated issue
+        const updatedIssue: Issue = {
+          ...issueToUpdate,
+          ...(issueData.title && { title: issueData.title }),
+          ...(issueData.description && { description: issueData.description }),
+          ...(issueData.type && { type: issueData.type }),
+          ...(issueData.priority && { priority: issueData.priority }),
+          ...(issueData.status && { status: issueData.status }),
+          ...(issueData.assigneeId !== undefined && { assignee }),
+          ...(issueData.dueDate !== undefined && { dueDate: issueData.dueDate }),
+          ...(issueData.tags && { tags: issueData.tags }),
+          updatedAt: new Date(),
+        };
+
+        // Add issue to new column if status matches
+        const targetStatus = issueData.status || issueToUpdate.status;
+        if (column.id === targetStatus) {
+          return {
+            ...column,
+            issues: [...issuesWithoutTarget, updatedIssue],
+          };
+        }
+
+        // Return column without the issue if it moved to another column
+        return {
+          ...column,
+          issues: issuesWithoutTarget,
+        };
+      }),
+    };
+
+    // Update the project with the new board
+    const updatedProject: Project = {
+      ...currentProject,
+      board: updatedBoard,
+    };
+
+    // Update the projects list
+    setAllProjects(
+      allProjects.map((p) =>
+        p.id === currentProject.id ? updatedProject : p
+      )
+    );
+
+    // Update the current project
+    setCurrentProject(updatedProject);
+  };
+
+  const deleteIssue = (issueId: string) => {
+    if (!currentProject) return;
+
+    // Update the current project's board by removing the issue
+    const updatedBoard: Board = {
+      ...currentProject.board,
+      columns: currentProject.board.columns.map((column) => ({
+        ...column,
+        issues: column.issues.filter((issue) => issue.id !== issueId),
+      })),
+    };
+
+    // Update the project with the new board
+    const updatedProject: Project = {
+      ...currentProject,
+      board: updatedBoard,
+    };
+
+    // Update the projects list
+    setAllProjects(
+      allProjects.map((p) =>
+        p.id === currentProject.id ? updatedProject : p
+      )
+    );
+
+    // Update the current project
+    setCurrentProject(updatedProject);
+  };
+
   // Get projects for current workspace
   const projects = allProjects.filter(
     (p) => p.workspaceId === currentWorkspace.id
@@ -221,6 +324,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         addProject,
         addWorkspace,
         addIssue,
+        updateIssue,
+        deleteIssue,
       }}
     >
       {children}

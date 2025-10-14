@@ -1,11 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, GripVertical, MessageSquare } from "lucide-react";
+import { Calendar, GripVertical, MessageSquare, Eye, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ViewIssueDialog } from "./view-issue-sheet";
+import { EditIssueDialog } from "./edit-issue-dialog";
+import { DeleteIssueAlert } from "./delete-issue-alert";
 import { Issue } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +41,10 @@ const typeColors = {
 };
 
 export function IssueCard({ issue }: IssueCardProps) {
+  const [viewOpen, setViewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   const {
     attributes,
     listeners,
@@ -50,41 +67,92 @@ export function IssueCard({ issue }: IssueCardProps) {
   };
 
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group cursor-pointer transition-all hover:shadow-md",
-        isDragging && "opacity-50 shadow-lg ring-2 ring-primary"
-      )}
-    >
-      <CardHeader className="p-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="outline" className={cn("text-xs", typeColors[issue.type])}>
-                {issue.type}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn("text-xs", priorityColors[issue.priority])}
-              >
-                {issue.priority}
-              </Badge>
+    <>
+      <Card
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "group cursor-pointer transition-all hover:shadow-md",
+          isDragging && "opacity-50 shadow-lg ring-2 ring-primary"
+        )}
+        onClick={() => setViewOpen(true)}
+      >
+        <CardHeader className="p-3 pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant="outline" className={cn("text-xs", typeColors[issue.type])}>
+                  {issue.type}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn("text-xs", priorityColors[issue.priority])}
+                >
+                  {issue.priority}
+                </Badge>
+              </div>
+              <h4 className="font-medium text-sm leading-tight line-clamp-2">
+                {issue.title}
+              </h4>
             </div>
-            <h4 className="font-medium text-sm leading-tight line-clamp-2">
-              {issue.title}
-            </h4>
+            <div className="flex items-center gap-1">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <span className="sr-only">Actions</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="12" cy="5" r="1" />
+                      <circle cx="12" cy="19" r="1" />
+                    </svg>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setViewOpen(true)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Issue
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setDeleteOpen(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Issue
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button
+                className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+                onClick={(e) => e.stopPropagation()}
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
           </div>
-          <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
       <CardContent className="p-3 pt-0 space-y-3">
         <p className="text-xs text-muted-foreground line-clamp-2">
@@ -138,5 +206,11 @@ export function IssueCard({ issue }: IssueCardProps) {
         </div>
       </CardContent>
     </Card>
+
+    {/* Dialogs */}
+    <ViewIssueDialog issue={issue} open={viewOpen} onOpenChange={setViewOpen} />
+    <EditIssueDialog issue={issue} open={editOpen} onOpenChange={setEditOpen} />
+    <DeleteIssueAlert issue={issue} open={deleteOpen} onOpenChange={setDeleteOpen} />
+  </>
   );
 }
