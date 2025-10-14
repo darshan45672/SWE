@@ -28,6 +28,7 @@ interface CreateIssueData {
 interface WorkspaceContextType {
   currentWorkspace: Workspace;
   currentProject: Project | null;
+  currentUser: User;
   workspaces: Workspace[];
   projects: Project[];
   switchWorkspace: (workspaceId: string) => void;
@@ -317,6 +318,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       value={{
         currentWorkspace,
         currentProject,
+        currentUser: mockUsers[0], // Current logged-in user (John Doe)
         workspaces: allWorkspaces,
         projects,
         switchWorkspace,

@@ -18,7 +18,7 @@ import { Board, Issue, IssueStatus } from "@/types";
 import { useWorkspace } from "@/contexts/workspace-context";
 
 export function KanbanBoard() {
-  const { currentProject } = useWorkspace();
+  const { currentProject, updateIssue } = useWorkspace();
   const [board, setBoard] = useState<Board | null>(
     currentProject?.board || null
   );
@@ -105,42 +105,20 @@ export function KanbanBoard() {
       }
     } else {
       // Moving to a different column
-      const updatedIssue = {
-        ...activeIssue,
+      // Update the issue status in the context
+      updateIssue(activeIssue.id, {
         status: destColumn.id as IssueStatus,
-        updatedAt: new Date(),
-      };
-
-      const newSourceIssues = sourceColumn.issues.filter(
-        (issue) => issue.id !== activeId
-      );
-
-      let newDestIssues;
-      const destIssueIndex = destColumn.issues.findIndex(
-        (issue) => issue.id === overId
-      );
-
-      if (destIssueIndex === -1) {
-        // Dropped on the column itself
-        newDestIssues = [...destColumn.issues, updatedIssue];
-      } else {
-        // Dropped on a specific issue
-        newDestIssues = [...destColumn.issues];
-        newDestIssues.splice(destIssueIndex, 0, updatedIssue);
-      }
-
-      setBoard({
-        ...board,
-        columns: board.columns.map((col) => {
-          if (col.id === sourceColumn.id) {
-            return { ...col, issues: newSourceIssues };
-          }
-          if (col.id === destColumn.id) {
-            return { ...col, issues: newDestIssues };
-          }
-          return col;
-        }),
+        title: activeIssue.title,
+        description: activeIssue.description,
+        type: activeIssue.type,
+        priority: activeIssue.priority,
+        assigneeId: activeIssue.assignee?.id,
+        dueDate: activeIssue.dueDate,
+        tags: activeIssue.tags,
       });
+
+      // Note: The board state will be updated via the useEffect
+      // that watches currentProject changes from the context
     }
   };
 

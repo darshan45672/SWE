@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, MessageSquare, Eye, Pencil, Trash2 } from "lucide-react";
@@ -16,7 +17,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ViewIssueDialog } from "./view-issue-sheet";
 import { EditIssueDialog } from "./edit-issue-dialog";
 import { DeleteIssueAlert } from "./delete-issue-alert";
 import { Issue } from "@/types";
@@ -41,7 +41,7 @@ const typeColors = {
 };
 
 export function IssueCard({ issue }: IssueCardProps) {
-  const [viewOpen, setViewOpen] = useState(false);
+  const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -66,6 +66,14 @@ export function IssueCard({ issue }: IssueCardProps) {
     }).format(date);
   };
 
+  const handleCardClick = () => {
+    router.push(`/issues/${issue.id}`);
+  };
+
+  const handleViewDetails = () => {
+    router.push(`/issues/${issue.id}`);
+  };
+
   return (
     <>
       <Card
@@ -78,7 +86,7 @@ export function IssueCard({ issue }: IssueCardProps) {
         {...attributes}
         {...listeners}
       >
-        <CardHeader className="p-3 pb-2" onClick={() => setViewOpen(true)}>
+        <CardHeader className="p-3 pb-2" onClick={handleCardClick}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -126,7 +134,7 @@ export function IssueCard({ issue }: IssueCardProps) {
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setViewOpen(true)}>
+                  <DropdownMenuItem onClick={handleViewDetails}>
                     <Eye className="mr-2 h-4 w-4" />
                     View Details
                   </DropdownMenuItem>
@@ -202,7 +210,6 @@ export function IssueCard({ issue }: IssueCardProps) {
     </Card>
 
     {/* Dialogs */}
-    <ViewIssueDialog issue={issue} open={viewOpen} onOpenChange={setViewOpen} />
     <EditIssueDialog issue={issue} open={editOpen} onOpenChange={setEditOpen} />
     <DeleteIssueAlert issue={issue} open={deleteOpen} onOpenChange={setDeleteOpen} />
   </>
