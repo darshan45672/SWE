@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, GripVertical, MessageSquare, Eye, Pencil, Trash2 } from "lucide-react";
+import { Calendar, MessageSquare, Eye, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -72,26 +72,27 @@ export function IssueCard({ issue }: IssueCardProps) {
         ref={setNodeRef}
         style={style}
         className={cn(
-          "group cursor-pointer transition-all hover:shadow-md",
+          "group cursor-grab active:cursor-grabbing transition-all hover:shadow-md",
           isDragging && "opacity-50 shadow-lg ring-2 ring-primary"
         )}
-        onClick={() => setViewOpen(true)}
+        {...attributes}
+        {...listeners}
       >
-        <CardHeader className="p-3 pb-2">
+        <CardHeader className="p-3 pb-2" onClick={() => setViewOpen(true)}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Badge variant="outline" className={cn("text-xs", typeColors[issue.type])}>
+                <Badge variant="outline" className={cn("text-xs cursor-pointer", typeColors[issue.type])}>
                   {issue.type}
                 </Badge>
                 <Badge
                   variant="outline"
-                  className={cn("text-xs", priorityColors[issue.priority])}
+                  className={cn("text-xs cursor-pointer", priorityColors[issue.priority])}
                 >
                   {issue.priority}
                 </Badge>
               </div>
-              <h4 className="font-medium text-sm leading-tight line-clamp-2">
+              <h4 className="font-medium text-sm leading-tight line-clamp-2 cursor-pointer">
                 {issue.title}
               </h4>
             </div>
@@ -102,6 +103,7 @@ export function IssueCard({ issue }: IssueCardProps) {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
                     <span className="sr-only">Actions</span>
                     <svg
@@ -142,20 +144,12 @@ export function IssueCard({ issue }: IssueCardProps) {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button
-                className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-                onClick={(e) => e.stopPropagation()}
-                {...attributes}
-                {...listeners}
-              >
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-              </button>
             </div>
           </div>
         </CardHeader>
 
       <CardContent className="p-3 pt-0 space-y-3">
-        <p className="text-xs text-muted-foreground line-clamp-2">
+        <p className="text-xs text-muted-foreground line-clamp-2 cursor-pointer">
           {issue.description}
         </p>
 
@@ -166,13 +160,13 @@ export function IssueCard({ issue }: IssueCardProps) {
               <Badge
                 key={tag}
                 variant="secondary"
-                className="text-xs px-1.5 py-0"
+                className="text-xs px-1.5 py-0 cursor-pointer"
               >
                 {tag}
               </Badge>
             ))}
             {issue.tags.length > 2 && (
-              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-pointer">
                 +{issue.tags.length - 2}
               </Badge>
             )}
@@ -197,7 +191,7 @@ export function IssueCard({ issue }: IssueCardProps) {
           </div>
 
           {issue.assignee && (
-            <Avatar className="h-6 w-6">
+            <Avatar className="h-6 w-6 cursor-pointer">
               <AvatarFallback className="text-xs">
                 {issue.assignee.avatar || issue.assignee.name.slice(0, 2)}
               </AvatarFallback>
