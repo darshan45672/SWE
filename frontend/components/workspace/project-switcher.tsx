@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown, FolderKanban, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, FolderKanban } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { CreateProjectDialog } from "./create-project-dialog";
 
 interface ProjectSwitcherProps {
   className?: string;
@@ -56,10 +57,7 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 text-muted-foreground">
-          <Plus className="h-4 w-4" />
-          <span>Create project</span>
-        </DropdownMenuItem>
+        <CreateProjectDialog />
       </DropdownMenuContent>
     </DropdownMenu>
   );

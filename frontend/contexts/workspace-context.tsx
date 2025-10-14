@@ -8,6 +8,8 @@ import { mockBoard } from "@/lib/mock-data";
 interface Project {
   id: string;
   name: string;
+  key?: string;
+  description?: string;
   workspaceId: string;
   board: Board;
 }
@@ -19,6 +21,8 @@ interface WorkspaceContextType {
   projects: Project[];
   switchWorkspace: (workspaceId: string) => void;
   switchProject: (projectId: string) => void;
+  addProject: (project: Omit<Project, "board">) => void;
+  addWorkspace: (workspace: Workspace) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
@@ -82,13 +86,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [currentProject, setCurrentProject] = useState<Project | null>(
     mockProjects[0]
   );
+  const [allProjects, setAllProjects] = useState<Project[]>(mockProjects);
+  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>(mockWorkspaces);
 
   const switchWorkspace = (workspaceId: string) => {
-    const workspace = mockWorkspaces.find((w) => w.id === workspaceId);
+    const workspace = allWorkspaces.find((w) => w.id === workspaceId);
     if (workspace) {
       setCurrentWorkspace(workspace);
       // Switch to the first project in the new workspace
-      const firstProjectInWorkspace = mockProjects.find(
+      const firstProjectInWorkspace = allProjects.find(
         (p) => p.workspaceId === workspaceId
       );
       setCurrentProject(firstProjectInWorkspace || null);
@@ -96,12 +102,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   const switchProject = (projectId: string) => {
-    const project = mockProjects.find((p) => p.id === projectId);
+    const project = allProjects.find((p) => p.id === projectId);
     if (project) {
       setCurrentProject(project);
       // Optionally switch workspace if project belongs to different workspace
       if (project.workspaceId !== currentWorkspace.id) {
-        const workspace = mockWorkspaces.find(
+        const workspace = allWorkspaces.find(
           (w) => w.id === project.workspaceId
         );
         if (workspace) {
@@ -111,8 +117,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addProject = (newProject: Omit<Project, "board">) => {
+    const projectWithBoard: Project = {
+      ...newProject,
+      board: {
+        ...mockBoard,
+        id: `board-${Date.now()}`,
+        name: `${newProject.name} Board`,
+      },
+    };
+    setAllProjects([...allProjects, projectWithBoard]);
+    setCurrentProject(projectWithBoard);
+  };
+
+  const addWorkspace = (newWorkspace: Workspace) => {
+    setAllWorkspaces([...allWorkspaces, newWorkspace]);
+    setCurrentWorkspace(newWorkspace);
+    setCurrentProject(null); // No projects in new workspace yet
+  };
+
   // Get projects for current workspace
-  const projects = mockProjects.filter(
+  const projects = allProjects.filter(
     (p) => p.workspaceId === currentWorkspace.id
   );
 
@@ -121,10 +146,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       value={{
         currentWorkspace,
         currentProject,
-        workspaces: mockWorkspaces,
+        workspaces: allWorkspaces,
         projects,
         switchWorkspace,
         switchProject,
+        addProject,
+        addWorkspace,
       }}
     >
       {children}

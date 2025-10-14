@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { CreateWorkspaceDialog } from "./create-workspace-dialog";
 
 interface WorkspaceSwitcherProps {
   className?: string;
@@ -66,10 +67,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 text-muted-foreground">
-          <Plus className="h-4 w-4" />
-          <span>Create workspace</span>
-        </DropdownMenuItem>
+        <CreateWorkspaceDialog />
       </DropdownMenuContent>
     </DropdownMenu>
   );
