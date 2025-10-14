@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, User, MessageSquare, PanelLeftClose } from "lucide-react";
+import { Bell, Search, User, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

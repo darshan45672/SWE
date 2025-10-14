@@ -7,7 +7,6 @@ import {
   FolderKanban,
   Inbox,
   ListTodo,
-  X,
 } from "lucide-react";
 import {
   Sidebar,
