@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 interface TopNavigationProps {
   onToggleChat: () => void;
@@ -48,6 +49,9 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
 
         {/* Right Section: Actions */}
         <div className="flex items-center gap-2">
+          {/* Theme Switcher */}
+          <ThemeSwitcher />
+
           {/* Chat Toggle */}
           <Button 
             variant={isChatOpen ? "default" : "ghost"} 
