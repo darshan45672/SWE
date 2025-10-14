@@ -63,6 +63,21 @@ export interface Message {
   issueId?: string;
 }
 
+export type NotificationType = "issue_created" | "issue_assigned" | "issue_updated" | "issue_comment";
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  issue?: Issue;
+  actor: User; // User who triggered the notification
+  recipient: User; // User who receives the notification
+  createdAt: Date;
+  read: boolean;
+  link?: string; // Link to the related resource
+}
+
 export interface ChatRoom {
   id: string;
   name: string;

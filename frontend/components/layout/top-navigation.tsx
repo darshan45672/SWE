@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, User, MessageSquare } from "lucide-react";
+import { Search, User, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 
 interface TopNavigationProps {
   onToggleChat: () => void;
@@ -64,11 +65,7 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-            <span className="sr-only">Notifications</span>
-          </Button>
+          <NotificationDropdown />
 
           {/* User Menu */}
           <DropdownMenu>

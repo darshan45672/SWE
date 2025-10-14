@@ -5,8 +5,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNavigation } from "@/components/layout/top-navigation";
 import { ChatPanel } from "@/components/chat/chat-panel";
-import { Button } from "@/components/ui/button";
-import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
 
@@ -45,19 +43,6 @@ export function LayoutClient({ children }: LayoutClientProps) {
                 )}
               >
                 {isChatOpen && <ChatPanel />}
-
-                {/* Chat Toggle Button (Visible when closed) */}
-                {!isChatOpen && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute -left-10 top-4"
-                    onClick={() => setIsChatOpen(true)}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="sr-only">Open chat</span>
-                  </Button>
-                )}
               </div>
             </div>
           </div>

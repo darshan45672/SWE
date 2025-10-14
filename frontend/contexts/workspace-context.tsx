@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import { Workspace, mockWorkspaces } from "@/types/workspace";
-import { Board, Issue, IssueStatus, Priority, IssueType, User } from "@/types";
+import { Board, Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
 import { mockBoard, mockUsers } from "@/lib/mock-data";
 
 interface Project {
@@ -31,6 +31,8 @@ interface WorkspaceContextType {
   currentUser: User;
   workspaces: Workspace[];
   projects: Project[];
+  notifications: Notification[];
+  unreadCount: number;
   switchWorkspace: (workspaceId: string) => void;
   switchProject: (projectId: string) => void;
   addProject: (project: Omit<Project, "board">) => void;
@@ -38,6 +40,9 @@ interface WorkspaceContextType {
   addIssue: (issueData: CreateIssueData) => void;
   updateIssue: (issueId: string, issueData: Partial<CreateIssueData>) => void;
   deleteIssue: (issueId: string) => void;
+  markNotificationAsRead: (notificationId: string) => void;
+  markAllNotificationsAsRead: () => void;
+  clearNotification: (notificationId: string) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
@@ -103,6 +108,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
   const [allProjects, setAllProjects] = useState<Project[]>(mockProjects);
   const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>(mockWorkspaces);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  // Current user (in a real app, this would come from auth)
+  const currentUser = mockUsers[0];
+
+  // Calculate unread count
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Helper function to create notification
+  const createNotification = (
+    type: NotificationType,
+    title: string,
+    message: string,
+    issue: Issue,
+    actor: User,
+    recipient: User
+  ) => {
+    const notification: Notification = {
+      id: `notif-${Date.now()}-${Math.random()}`,
+      type,
+      title,
+      message,
+      issue,
+      actor,
+      recipient,
+      createdAt: new Date(),
+      read: false,
+      link: `/issues/${issue.id}`,
+    };
+    setNotifications(prev => [notification, ...prev]);
+  };
 
   const switchWorkspace = (workspaceId: string) => {
     const workspace = allWorkspaces.find((w) => w.id === workspaceId);
@@ -168,7 +204,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       priority: issueData.priority,
       type: issueData.type,
       assignee,
-      reporter: mockUsers[0], // Default to first user as reporter
+      reporter: currentUser,
       createdAt: new Date(),
       updatedAt: new Date(),
       dueDate: issueData.dueDate,
@@ -205,6 +241,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // Update the current project
     setCurrentProject(updatedProject);
+
+    // Create notification if issue is assigned to someone
+    if (assignee && assignee.id !== currentUser.id) {
+      createNotification(
+        "issue_assigned",
+        "New Issue Assigned",
+        `${currentUser.name} assigned you to "${newIssue.title}"`,
+        newIssue,
+        currentUser,
+        assignee
+      );
+    }
   };
 
   const updateIssue = (issueId: string, issueData: Partial<CreateIssueData>) => {
@@ -277,6 +325,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // Update the current project
     setCurrentProject(updatedProject);
+
+    // Create notification if assignee changed and it's not the current user
+    if (issueData.assigneeId && assignee && assignee.id !== currentUser.id) {
+      const issueToUpdate = currentProject.board.columns
+        .flatMap((col) => col.issues)
+        .find((issue) => issue.id === issueId);
+      
+      if (issueToUpdate && issueToUpdate.assignee?.id !== assignee.id) {
+        createNotification(
+          "issue_assigned",
+          "Issue Assigned to You",
+          `${currentUser.name} assigned you to "${issueToUpdate.title}"`,
+          issueToUpdate,
+          currentUser,
+          assignee
+        );
+      }
+    }
   };
 
   const deleteIssue = (issueId: string) => {
@@ -313,14 +379,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     (p) => p.workspaceId === currentWorkspace.id
   );
 
+  // Notification management functions
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev =>
+      prev.map(notif =>
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      )
+    );
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev =>
+      prev.map(notif => ({ ...notif, read: true }))
+    );
+  };
+
+  const clearNotification = (notificationId: string) => {
+    setNotifications(prev =>
+      prev.filter(notif => notif.id !== notificationId)
+    );
+  };
+
   return (
     <WorkspaceContext.Provider
       value={{
         currentWorkspace,
         currentProject,
-        currentUser: mockUsers[0], // Current logged-in user (John Doe)
+        currentUser,
         workspaces: allWorkspaces,
         projects,
+        notifications,
+        unreadCount,
         switchWorkspace,
         switchProject,
         addProject,
@@ -328,6 +417,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         addIssue,
         updateIssue,
         deleteIssue,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        clearNotification,
       }}
     >
       {children}
