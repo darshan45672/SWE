@@ -1,0 +1,301 @@
+// Prisma Schema for MongoDB
+// This file defines the database schema for ProjectManager application
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  email             String    @unique
+  password          String
+  name              String?
+  avatar            String?
+  bio               String?
+  phone             String?
+  location          String?
+  website           String?
+  company           String?
+  jobTitle          String?
+  timezone          String    @default("UTC")
+  language          String    @default("en")
+  
+  // Authentication
+  emailVerified     Boolean   @default(false)
+  emailVerifyToken  String?
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relations
+  projects          ProjectMember[]
+  issues            Issue[]           @relation("CreatedIssues")
+  assignedIssues    Issue[]           @relation("AssignedIssues")
+  comments          Comment[]
+  notifications     Notification[]
+  sessions          Session[]
+  activityLogs      ActivityLog[]
+  
+  @@map("users")
+}
+
+model Session {
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String      @db.ObjectId
+  refreshToken String      @unique
+  deviceInfo   DeviceInfo?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime    @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+type DeviceInfo {
+  userAgent String
+  browser   String
+  os        String
+  device    String
+}
+
+// ============================================
+// PROJECTS
+// ============================================
+
+model Project {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  key         String    @unique // e.g., "PROJ"
+  description String?
+  avatar      String?
+  
+  // Settings
+  isPublic    Boolean   @default(false)
+  archived    Boolean   @default(false)
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  members     ProjectMember[]
+  boards      Board[]
+  issues      Issue[]
+  
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String      @db.ObjectId
+  userId    String      @db.ObjectId
+  role      ProjectRole @default(MEMBER)
+  joinedAt  DateTime    @default(now())
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ============================================
+// BOARDS & ISSUES
+// ============================================
+
+model Board {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String   @db.ObjectId
+  name      String   @default("Main Board")
+  columns   Column[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("boards")
+}
+
+type Column {
+  id    String
+  title String
+  order Int
+}
+
+model Issue {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String        @db.ObjectId
+  key         String        @unique // e.g., "PROJ-123"
+  title       String
+  description String?
+  
+  // Issue details
+  type        IssueType     @default(TASK)
+  status      IssueStatus   @default(TODO)
+  priority    IssuePriority @default(MEDIUM)
+  
+  // Assignment
+  reporterId  String        @db.ObjectId
+  assigneeId  String?       @db.ObjectId
+  
+  // Dates
+  dueDate     DateTime?
+  startDate   DateTime?
+  completedAt DateTime?
+  
+  // Metadata
+  tags        String[]
+  attachments Attachment[]
+  
+  // Timestamps
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // Relations
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter    User          @relation("CreatedIssues", fields: [reporterId], references: [id])
+  assignee    User?         @relation("AssignedIssues", fields: [assigneeId], references: [id])
+  comments    Comment[]
+  history     IssueHistory[]
+  
+  @@map("issues")
+}
+
+enum IssueType {
+  BUG
+  FEATURE
+  TASK
+  IMPROVEMENT
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+type Attachment {
+  id         String
+  filename   String
+  url        String
+  size       Int
+  mimeType   String
+  uploadedAt DateTime
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  issueId   String   @db.ObjectId
+  userId    String   @db.ObjectId
+  content   String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+  
+  @@map("comments")
+}
+
+model IssueHistory {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  issueId   String   @db.ObjectId
+  field     String   // e.g., "status", "assignee", "priority"
+  oldValue  String?
+  newValue  String?
+  changedBy String   // User ID as string
+  changedAt DateTime @default(now())
+  
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  
+  @@map("issue_history")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String           @db.ObjectId
+  type      NotificationType
+  title     String
+  message   String
+  
+  // Metadata
+  issueId   String?          @db.ObjectId
+  projectId String?          @db.ObjectId
+  metadata  Json?
+  
+  // Status
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  
+  createdAt DateTime         @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ISSUE_ASSIGNED
+  ISSUE_CREATED
+  ISSUE_UPDATED
+  ISSUE_COMMENT
+  PROJECT_INVITED
+  MENTION
+}
+
+// ============================================
+// ACTIVITY LOGS
+// ============================================
+
+model ActivityLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  action     String   // e.g., "created_issue", "updated_project"
+  entityType String   // e.g., "issue", "project"
+  entityId   String   @db.ObjectId
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  
+  createdAt  DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("activity_logs")
+}
