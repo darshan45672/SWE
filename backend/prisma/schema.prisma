@@ -1,0 +1,300 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String
+  avatar    String?
+  bio       String?
+  phone     String?
+  location  String?
+  website   String?
+  timezone  String?
+  language  String?  @default("en")
+  company   String?
+  jobTitle  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations - MongoDB style with ObjectId references
+  workspaces          WorkspaceMember[]
+  assignedIssues      Issue[]           @relation("AssignedIssues")
+  reportedIssues      Issue[]           @relation("ReportedIssues")
+  comments            Comment[]
+  messages            Message[]
+  sentNotifications   Notification[]    @relation("NotificationActor")
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  chatRoomParticipants ChatRoomParticipant[]
+
+  @@map("users")
+}
+
+// Workspace model
+model Workspace {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  icon      String?
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members   WorkspaceMember[]
+  projects  Project[]
+
+  @@map("workspaces")
+}
+
+// Workspace membership with roles
+model WorkspaceMember {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  workspaceId String        @db.ObjectId
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("workspace_members")
+}
+
+// Project model
+model Project {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  workspaceId String   @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  boards    Board[]
+  issues    Issue[]
+
+  @@map("projects")
+}
+
+// Board model (Kanban boards)
+model Board {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  projectId String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  project Project  @relation(fields: [projectId], references: [id])
+  columns Column[]
+
+  @@map("boards")
+}
+
+// Column model (for Kanban columns)
+model Column {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  status    IssueStatus
+  boardId   String      @db.ObjectId
+  position  Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  board  Board   @relation(fields: [boardId], references: [id])
+  issues Issue[]
+
+  @@map("columns")
+}
+
+// Issue model
+model Issue {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  status      IssueStatus @default(TODO)
+  priority    Priority    @default(MEDIUM)
+  type        IssueType   @default(TASK)
+  assigneeId  String?     @db.ObjectId
+  reporterId  String      @db.ObjectId
+  projectId   String      @db.ObjectId
+  columnId    String?     @db.ObjectId
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  assignee      User?         @relation("AssignedIssues", fields: [assigneeId], references: [id])
+  reporter      User          @relation("ReportedIssues", fields: [reporterId], references: [id])
+  project       Project       @relation(fields: [projectId], references: [id])
+  column        Column?       @relation(fields: [columnId], references: [id])
+  comments      Comment[]
+  tags          IssueTag[]
+  notifications Notification[]
+  messages      Message[]
+
+  @@map("issues")
+}
+
+// Tag model
+model Tag {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  issues IssueTag[]
+
+  @@map("tags")
+}
+
+// Many-to-many relation between Issues and Tags (MongoDB doesn't support compound IDs)
+model IssueTag {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  issueId String @db.ObjectId
+  tagId   String @db.ObjectId
+
+  // Relations
+  issue Issue @relation(fields: [issueId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@map("issue_tags")
+}
+
+// Comment model
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  authorId  String   @db.ObjectId
+  issueId   String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author User  @relation(fields: [authorId], references: [id])
+  issue  Issue @relation(fields: [issueId], references: [id])
+
+  @@map("comments")
+}
+
+// Chat room model
+model ChatRoom {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  type      ChatRoomType @default(GENERAL)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relations
+  messages     Message[]
+  participants ChatRoomParticipant[]
+
+  @@map("chat_rooms")
+}
+
+// Chat room participants
+model ChatRoomParticipant {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  chatRoomId String   @db.ObjectId
+  joinedAt   DateTime @default(now())
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id])
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id])
+
+  @@map("chat_room_participants")
+}
+
+// Message model
+model Message {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  content    String
+  senderId   String   @db.ObjectId
+  chatRoomId String?  @db.ObjectId
+  issueId    String?  @db.ObjectId
+  timestamp  DateTime @default(now())
+
+  // Relations
+  sender   User      @relation(fields: [senderId], references: [id])
+  chatRoom ChatRoom? @relation(fields: [chatRoomId], references: [id])
+  issue    Issue?    @relation(fields: [issueId], references: [id])
+
+  @@map("messages")
+}
+
+// Notification model
+model Notification {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  type        NotificationType
+  title       String
+  message     String
+  actorId     String           @db.ObjectId
+  recipientId String           @db.ObjectId
+  issueId     String?          @db.ObjectId
+  link        String?
+  read        Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  actor     User   @relation("NotificationActor", fields: [actorId], references: [id])
+  recipient User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  issue     Issue? @relation(fields: [issueId], references: [id])
+
+  @@map("notifications")
+}
+
+// Enums
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum IssueType {
+  BUG
+  FEATURE
+  TASK
+  IMPROVEMENT
+}
+
+enum NotificationType {
+  ISSUE_CREATED
+  ISSUE_ASSIGNED
+  ISSUE_UPDATED
+  ISSUE_COMMENT
+}
+
+enum ChatRoomType {
+  GENERAL
+  PROJECT
+  DIRECT_MESSAGE
+}
