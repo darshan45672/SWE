@@ -17,7 +17,7 @@ export function LayoutClient({ children }: LayoutClientProps) {
 
   return (
     <WorkspaceProvider>
-      <SidebarProvider defaultOpen={false}>
+      <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen w-full overflow-hidden">
           {/* Left Sidebar */}
           <AppSidebar />
