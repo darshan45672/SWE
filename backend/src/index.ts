@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import prisma from './lib/prisma'
+import authRoutes from './auth/routes'
 
 // Load environment variables
 dotenv.config()
@@ -26,6 +27,9 @@ app.get('/health', (req, res) => {
   })
 })
 
+// Auth routes
+app.use('/api/v1/auth', authRoutes)
+
 // API routes
 app.get('/api/v1', (req, res) => {
   res.json({ 
@@ -33,6 +37,7 @@ app.get('/api/v1', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/health',
+      auth: '/api/v1/auth',
       users: '/api/v1/users',
       workspaces: '/api/v1/workspaces',
       projects: '/api/v1/projects',

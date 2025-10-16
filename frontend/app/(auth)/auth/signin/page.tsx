@@ -3,18 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isValidEmail } from "@/lib/auth-utils";
+import { useAuth } from "@/contexts/auth-context";
 import type { SignInFormData } from "@/types/auth";
 
 export default function SignInPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState<SignInFormData>({
     email: "",
     password: "",
@@ -23,6 +26,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<SignInFormData>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string>("");
 
   const validate = (): boolean => {
     const newErrors: Partial<SignInFormData> = {};
@@ -47,12 +51,23 @@ export default function SignInPage() {
     if (!validate()) return;
 
     setIsLoading(true);
+    setApiError("");
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        // Redirect to main app
+        router.push("/");
+      } else {
+        setApiError(result.message);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setApiError("An unexpected error occurred. Please try again.");
+    } finally {
       setIsLoading(false);
-      router.push("/");
-    }, 1500);
+    }
   };
 
   return (
@@ -61,6 +76,14 @@ export default function SignInPage() {
       description="Enter your credentials to access your account"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* API Error Alert */}
+        {apiError && (
+          <Alert variant="destructive" className="border-destructive/20">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{apiError}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Email */}
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
