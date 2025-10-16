@@ -25,6 +25,7 @@ router.post(
  * @route   GET /api/projects/workspace/:workspaceId
  * @desc    Get all projects for a workspace
  * @access  Private (workspace members only)
+ * @note    Must come before /:id route to avoid matching 'workspace' as an ID
  */
 router.get(
   '/workspace/:workspaceId',

@@ -39,8 +39,10 @@ interface WorkspaceContextType {
   switchProject: (projectId: string) => void;
   addProject: (project: Omit<Project, "board">) => void;
   addWorkspace: (workspace: Workspace) => void;
-  createWorkspace: (workspaceData: { name: string; icon?: string; color?: string }) => Promise<{ success: boolean; message?: string; data?: Workspace }>;
+  createWorkspace: (workspaceData: { name: string; description?: string; icon?: string; color?: string }) => Promise<{ success: boolean; message?: string; data?: Workspace }>;
+  createProject: (projectData: { name: string; description?: string }) => Promise<{ success: boolean; message?: string; data?: any }>;
   fetchWorkspaces: () => Promise<void>;
+  fetchProjects: (workspaceId: string) => Promise<void>;
   addIssue: (issueData: CreateIssueData) => void;
   updateIssue: (issueId: string, issueData: Partial<CreateIssueData>) => void;
   deleteIssue: (issueId: string) => void;
@@ -163,7 +165,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   // Create new workspace - Context7 pattern
-  const createWorkspace = async (workspaceData: { name: string; icon?: string; color?: string }): Promise<{ success: boolean; message?: string; data?: Workspace }> => {
+  const createWorkspace = async (workspaceData: { name: string; description?: string; icon?: string; color?: string }): Promise<{ success: boolean; message?: string; data?: Workspace }> => {
     if (!token) {
       return { success: false, message: 'Authentication required' };
     }
@@ -233,10 +235,161 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Fetch projects for a workspace - Context7 pattern
+  const fetchProjects = async (workspaceId: string) => {
+    if (!token) {
+      console.log('No token available, skipping projects fetch');
+      return;
+    }
+
+    try {
+      console.log('Fetching projects for workspace:', workspaceId);
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects/workspace/${workspaceId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch projects response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch projects failed:', response.status, errorText);
+        throw new Error(`Failed to fetch projects: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched projects:', data);
+      
+      if (data.success && data.data) {
+        // Map API projects to local Project type with mock boards
+        const projectsWithBoards = data.data.map((project: any) => ({
+          id: project.id,
+          name: project.name,
+          description: project.description || '',
+          workspaceId: project.workspaceId,
+          board: {
+            ...mockBoard,
+            id: `board-${project.id}`,
+            name: `${project.name} Board`,
+          },
+        }));
+        
+        setAllProjects(projectsWithBoards);
+        
+        // Set first project as current if none selected
+        if (!currentProject && projectsWithBoards.length > 0) {
+          setCurrentProject(projectsWithBoards[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  // Create new project - Context7 pattern
+  const createProject = async (projectData: { name: string; description?: string }): Promise<{ success: boolean; message?: string; data?: any }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    if (!currentWorkspace) {
+      return { success: false, message: 'No workspace selected' };
+    }
+
+    console.log('Creating project with data:', projectData);
+    console.log('Using token:', token ? 'Token present' : 'No token');
+    console.log('Current workspace:', currentWorkspace.id);
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects`;
+      console.log('Sending POST request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...projectData,
+          workspaceId: currentWorkspace.id,
+        }),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        const textResponse = await response.text();
+        console.error('Response text:', textResponse);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to create project',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Add to local state with mock board
+        const projectWithBoard: Project = {
+          id: data.data.id,
+          name: data.data.name,
+          description: data.data.description || '',
+          workspaceId: data.data.workspaceId,
+          board: {
+            ...mockBoard,
+            id: `board-${data.data.id}`,
+            name: `${data.data.name} Board`,
+          },
+        };
+        
+        setAllProjects(prev => [...prev, projectWithBoard]);
+        setCurrentProject(projectWithBoard);
+        
+        return {
+          success: true,
+          message: data.message,
+          data: data.data,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error creating project:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create project',
+      };
+    }
+  };
+
   // Fetch workspaces on mount and when token changes
   useEffect(() => {
     fetchWorkspaces();
   }, [token]);
+
+  // Fetch projects when current workspace changes
+  useEffect(() => {
+    if (currentWorkspace && token) {
+      fetchProjects(currentWorkspace.id);
+    }
+  }, [currentWorkspace?.id, token]);
 
   // Helper function to create notification
   const createNotification = (
@@ -538,7 +691,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         addProject,
         addWorkspace,
         createWorkspace,
+        createProject,
         fetchWorkspaces,
+        fetchProjects,
         addIssue,
         updateIssue,
         deleteIssue,

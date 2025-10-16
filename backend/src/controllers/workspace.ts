@@ -21,11 +21,12 @@ export const createWorkspace = async (req: Request, res: Response) => {
       });
     }
 
-    const { name, icon, color } = req.body;
+    const { name, description, icon, color } = req.body;
 
     // Create workspace
     const workspace = await workspaceService.createWorkspace(userId, {
       name,
+      description,
       icon,
       color,
     });
@@ -136,11 +137,12 @@ export const updateWorkspace = async (req: Request, res: Response) => {
     }
 
     const { id } = req.params;
-    const { name, icon, color } = req.body;
+    const { name, description, icon, color } = req.body;
 
     // Update workspace
     const workspace = await workspaceService.updateWorkspace(id, userId, {
       name,
+      description,
       icon,
       color,
     });

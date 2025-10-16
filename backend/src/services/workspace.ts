@@ -4,12 +4,14 @@ import { Workspace, WorkspaceMember } from '@prisma/client';
 // Type definitions for workspace operations
 export interface CreateWorkspaceData {
   name: string;
+  description?: string;
   icon?: string;
   color?: string;
 }
 
 export interface UpdateWorkspaceData {
   name?: string;
+  description?: string;
   icon?: string;
   color?: string;
 }
@@ -37,8 +39,9 @@ export const createWorkspace = async (
     const workspace = await prisma.workspace.create({
       data: {
         name: data.name,
+        description: data.description,
         icon: data.icon || '🚀',
-        color: data.color || 'bg-blue-500',
+        color: data.color || '#3B82F6',
         members: {
           create: {
             userId: userId,

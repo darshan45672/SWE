@@ -9,6 +9,12 @@ export const createWorkspaceValidation = [
     .matches(/^[a-zA-Z0-9\s\-_]+$/)
     .withMessage('Workspace name can only contain letters, numbers, spaces, hyphens, and underscores'),
   
+  body('description')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Description must not exceed 500 characters'),
+  
   body('icon')
     .optional({ values: 'falsy' })
     .trim()
@@ -19,11 +25,14 @@ export const createWorkspaceValidation = [
     .optional({ values: 'falsy' })
     .trim()
     .custom((value) => {
-      // Allow empty string or valid Tailwind color class
+      // Allow empty string or valid hex color or Tailwind color class
       if (!value || value === '') return true;
+      // Check for hex color
+      if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)) return true;
+      // Check for Tailwind color class
       return /^(bg|text|border)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|100|200|300|400|500|600|700|800|900|950)$/.test(value);
     })
-    .withMessage('Color must be a valid Tailwind CSS color class'),
+    .withMessage('Color must be a valid hex color (#RRGGBB) or Tailwind CSS color class'),
 ];
 
 // Get workspace by ID validation
@@ -49,6 +58,12 @@ export const updateWorkspaceValidation = [
     .matches(/^[a-zA-Z0-9\s\-_]+$/)
     .withMessage('Workspace name can only contain letters, numbers, spaces, hyphens, and underscores'),
   
+  body('description')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Description must not exceed 500 characters'),
+  
   body('icon')
     .optional({ values: 'falsy' })
     .trim()
@@ -58,8 +73,12 @@ export const updateWorkspaceValidation = [
   body('color')
     .optional({ values: 'falsy' })
     .trim()
-    .matches(/^(bg|text|border)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|100|200|300|400|500|600|700|800|900|950)$/)
-    .withMessage('Color must be a valid Tailwind CSS color class'),
+    .custom((value) => {
+      if (!value || value === '') return true;
+      if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)) return true;
+      return /^(bg|text|border)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|100|200|300|400|500|600|700|800|900|950)$/.test(value);
+    })
+    .withMessage('Color must be a valid hex color (#RRGGBB) or Tailwind CSS color class'),
 ];
 
 // Delete workspace validation

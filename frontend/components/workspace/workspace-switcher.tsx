@@ -89,10 +89,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         >
           <div className="flex items-center gap-2">
             <div
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded text-xs",
-                currentWorkspace.color
-              )}
+              className="flex h-6 w-6 items-center justify-center rounded text-xs text-white"
+              style={{ backgroundColor: currentWorkspace.color || '#3B82F6' }}
             >
               {currentWorkspace.icon}
             </div>
@@ -116,10 +114,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
               className="flex items-center gap-2"
             >
               <div
-                className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded text-xs",
-                  workspace.color
-                )}
+                className="flex h-6 w-6 items-center justify-center rounded text-xs text-white"
+                style={{ backgroundColor: workspace.color || '#3B82F6' }}
               >
                 {workspace.icon}
               </div>
