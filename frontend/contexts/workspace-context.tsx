@@ -384,6 +384,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [currentProject?.id, token]);
 
+  // Fetch notifications periodically when user is authenticated - Context7 pattern
+  useEffect(() => {
+    if (token) {
+      fetchNotifications();
+      
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(() => {
+        fetchNotifications();
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token]);
+
   // Fetch issues for a project - Context7 pattern (Simplified - no boards)
   const fetchIssues = async (projectId: string) => {
     if (!token) {
@@ -741,19 +755,105 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     ? allProjects.filter((p) => p.workspaceId === currentWorkspace.id)
     : [];
 
-  // Notification management functions
-  const markNotificationAsRead = (notificationId: string) => {
+  // Fetch notifications from API - Context7 pattern
+  const fetchNotifications = async () => {
+    if (!token) {
+      console.log('No token available, skipping notification fetch');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Fetch notifications failed:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        setNotifications(data.data.map((notification: any) => ({
+          id: notification.id,
+          type: notification.type.toLowerCase().replace(/_/g, '_') as NotificationType,
+          title: notification.title,
+          message: notification.message,
+          actor: notification.actor,
+          recipient: notification.recipient,
+          issue: notification.issue,
+          createdAt: new Date(notification.createdAt),
+          read: notification.read,
+          link: notification.link,
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Notification management functions - Context7 pattern
+  const markNotificationAsRead = async (notificationId: string) => {
+    if (!token) return;
+
+    // Optimistic update
     setNotifications(prev =>
       prev.map(notif =>
         notif.id === notificationId ? { ...notif, read: true } : notif
       )
     );
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Failed to mark notification as read:', response.status);
+        // Revert optimistic update
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // Revert optimistic update
+      fetchNotifications();
+    }
   };
 
-  const markAllNotificationsAsRead = () => {
+  const markAllNotificationsAsRead = async () => {
+    if (!token) return;
+
+    // Optimistic update
     setNotifications(prev =>
       prev.map(notif => ({ ...notif, read: true }))
     );
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/notifications/read-all`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Failed to mark all notifications as read:', response.status);
+        // Revert optimistic update
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      // Revert optimistic update
+      fetchNotifications();
+    }
   };
 
   const clearNotification = (notificationId: string) => {

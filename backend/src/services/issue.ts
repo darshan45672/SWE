@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
-import { Priority, IssueStatus, IssueType } from '@prisma/client';
+import { Priority, IssueStatus, IssueType, NotificationType } from '@prisma/client';
+import { notifyWorkspaceMembers } from './notification';
 
 // Types for Issue service - Context7 pattern (Simplified)
 interface CreateIssueData {
@@ -152,6 +153,22 @@ export const createIssue = async (
     },
   });
 
+  // Send notification to workspace members - Context7 pattern
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    await notifyWorkspaceMembers(
+      userId,
+      issue.id,
+      projectId,
+      NotificationType.ISSUE_CREATED,
+      'New Issue Created',
+      `${user?.name || 'Someone'} created a new issue: ${title}`
+    );
+  } catch (error) {
+    console.error('Failed to send notification:', error);
+    // Continue even if notification fails
+  }
+
   return issue;
 };
 
@@ -162,7 +179,8 @@ export const updateIssue = async (
   userId: string
 ) => {
   // Check if issue exists and user has access
-  await getIssueById(issueId, userId);
+  const existingIssue = await getIssueById(issueId, userId);
+  const oldStatus = existingIssue.status;
 
   // Handle tags update if provided
   if (issueData.tags !== undefined) {
@@ -218,13 +236,58 @@ export const updateIssue = async (
     },
   });
 
+  // Send notification to workspace members - Context7 pattern
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    
+    // Check if status was changed
+    if (issueData.status && issueData.status !== oldStatus) {
+      await notifyWorkspaceMembers(
+        userId,
+        issueId,
+        existingIssue.projectId,
+        NotificationType.ISSUE_UPDATED,
+        'Issue Status Changed',
+        `${user?.name || 'Someone'} changed the status of "${existingIssue.title}" from ${oldStatus} to ${issueData.status}`
+      );
+    } else {
+      await notifyWorkspaceMembers(
+        userId,
+        issueId,
+        existingIssue.projectId,
+        NotificationType.ISSUE_UPDATED,
+        'Issue Updated',
+        `${user?.name || 'Someone'} updated the issue: ${existingIssue.title}`
+      );
+    }
+  } catch (error) {
+    console.error('Failed to send notification:', error);
+    // Continue even if notification fails
+  }
+
   return updatedIssue;
 };
 
 // Delete issue - Context7 pattern
 export const deleteIssue = async (issueId: string, userId: string) => {
   // Check if issue exists and user has access
-  await getIssueById(issueId, userId);
+  const issue = await getIssueById(issueId, userId);
+
+  // Send notification to workspace members before deleting - Context7 pattern
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    await notifyWorkspaceMembers(
+      userId,
+      issueId,
+      issue.projectId,
+      NotificationType.ISSUE_UPDATED, // Using ISSUE_UPDATED as closest type
+      'Issue Deleted',
+      `${user?.name || 'Someone'} deleted the issue: ${issue.title}`
+    );
+  } catch (error) {
+    console.error('Failed to send notification:', error);
+    // Continue even if notification fails
+  }
 
   // Delete issue
   await prisma.issue.delete({

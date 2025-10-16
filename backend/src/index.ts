@@ -6,6 +6,7 @@ import authRoutes from './auth/routes'
 import workspaceRoutes from './routes/workspace'
 import projectRoutes from './routes/project'
 import issueRoutes from './routes/issue'
+import notificationRoutes from './routes/notification'
 
 // Load environment variables
 dotenv.config()
@@ -41,6 +42,9 @@ app.use('/api/v1/projects', projectRoutes)
 
 // Issue routes - Context7 pattern with authentication (Simplified - no boards)
 app.use('/api/v1/issues', issueRoutes)
+
+// Notification routes - Context7 pattern with authentication
+app.use('/api/v1/notifications', notificationRoutes)
 
 // API routes
 app.get('/api/v1', (req, res) => {
