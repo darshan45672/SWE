@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,12 @@ import type { SignInFormData } from "@/types/auth";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
+  
+  // Context7 pattern: Get redirect URL from query params
+  const redirectTo = searchParams.get('from') || '/';
+  
   const [formData, setFormData] = useState<SignInFormData>({
     email: "",
     password: "",
@@ -27,6 +32,15 @@ export default function SignInPage() {
   const [errors, setErrors] = useState<Partial<SignInFormData>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
+
+  // Context7 pattern: Show redirect message if user was redirected
+  const isRedirected = searchParams.get('from') !== null;
+  
+  useEffect(() => {
+    if (isRedirected) {
+      console.log('🔒 User redirected from protected route:', redirectTo);
+    }
+  }, [isRedirected, redirectTo]);
 
   const validate = (): boolean => {
     const newErrors: Partial<SignInFormData> = {};
@@ -54,12 +68,15 @@ export default function SignInPage() {
     setApiError("");
 
     try {
+      console.log('🔐 Attempting login with redirect to:', redirectTo);
       const result = await login(formData.email, formData.password);
       
       if (result.success) {
-        // Redirect to main app
-        router.push("/");
+        console.log('✅ Login successful, redirecting to:', redirectTo);
+        // Context7 pattern: Redirect to original destination or default
+        router.push(redirectTo);
       } else {
+        console.error('❌ Login failed:', result.message);
         setApiError(result.message);
       }
     } catch (error) {
@@ -76,6 +93,16 @@ export default function SignInPage() {
       description="Enter your credentials to access your account"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Context7 pattern: Show redirect notification */}
+        {isRedirected && (
+          <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200">
+              Please sign in to access the requested page.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* API Error Alert */}
         {apiError && (
           <Alert variant="destructive" className="border-destructive/20">

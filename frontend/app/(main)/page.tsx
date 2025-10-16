@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { FolderKanban } from "lucide-react";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import {
   Empty,
   EmptyContent,
@@ -32,6 +33,23 @@ const KanbanBoard = dynamic(
 export default function Home() {
   const { currentProject } = useWorkspace();
 
+  return (
+    <AuthGuard 
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+            <p className="text-sm text-muted-foreground">Checking authentication...</p>
+          </div>
+        </div>
+      }
+    >
+      <DashboardContent currentProject={currentProject} />
+    </AuthGuard>
+  );
+}
+
+function DashboardContent({ currentProject }: { currentProject: any }) {
   // Show empty state when no project is selected
   if (!currentProject) {
     return (
