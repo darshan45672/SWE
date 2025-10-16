@@ -23,36 +23,27 @@ export function AuthGuard({
   const router = useRouter();
 
   useEffect(() => {
-    console.log('🛡️ AuthGuard check:', {
-      user: !!user,
-      loading,
-      redirectTo,
-      timestamp: new Date().toISOString()
-    });
-
-    // If not loading and no user, redirect to auth
+    // Context7 pattern: Wait for initial load, then redirect if no user
     if (!loading && !user) {
-      console.log('🔒 AuthGuard: Redirecting unauthenticated user to:', redirectTo);
       const currentPath = window.location.pathname;
       const redirectUrl = `${redirectTo}?from=${encodeURIComponent(currentPath)}`;
-      router.push(redirectUrl);
+      
+      // Use replace to avoid back button issues
+      router.replace(redirectUrl);
     }
   }, [user, loading, router, redirectTo]);
 
   // Show loading state while checking authentication
   if (loading) {
-    console.log('⏳ AuthGuard: Loading authentication state...');
     return <>{fallback}</>;
   }
 
   // Show nothing while redirecting unauthenticated users
   if (!user) {
-    console.log('🚫 AuthGuard: No user found, preparing redirect...');
     return <>{fallback}</>;
   }
 
   // User is authenticated, render protected content
-  console.log('✅ AuthGuard: User authenticated, rendering protected content');
   return <>{children}</>;
 }
 
@@ -66,7 +57,6 @@ export function RedirectToSignIn({ redirectTo = '/auth/signin' }: { redirectTo?:
 
   useEffect(() => {
     if (!loading && !user) {
-      console.log('🔄 RedirectToSignIn: Redirecting to:', redirectTo);
       const currentPath = window.location.pathname;
       const redirectUrl = `${redirectTo}?from=${encodeURIComponent(currentPath)}`;
       router.push(redirectUrl);

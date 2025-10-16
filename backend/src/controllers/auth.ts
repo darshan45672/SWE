@@ -7,6 +7,12 @@ import { UpdateProfileData } from '../types/profile';
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
     try {
+      console.log('🎯 Context7 Controller Debug - Raw request body received:', {
+        ...req.body,
+        password: '*** HIDDEN ***',
+        confirmPassword: '*** HIDDEN ***'
+      });
+
       const registerData: RegisterData = req.body;
       const result = await AuthService.register(registerData);
 
@@ -113,8 +119,6 @@ export class AuthController {
       const userId = (req as AuthenticatedRequest).user.userId;
       const updateData: UpdateProfileData = req.body;
 
-      console.log('📝 Profile update request:', { userId, updateData });
-
       const result = await AuthService.updateUserProfile(userId, updateData);
 
       if (result.success) {
@@ -166,8 +170,9 @@ export class AuthController {
 
   static async verifyToken(req: Request, res: Response): Promise<void> {
     try {
-      // If we reach here, the token is valid (due to requireAuth middleware)
+      // Context7 pattern: Verify token is valid through middleware
       const userId = (req as AuthenticatedRequest).user.userId;
+      
       const user = await AuthService.getUserProfile(userId);
 
       if (user) {
@@ -177,16 +182,19 @@ export class AuthController {
           user
         });
       } else {
+        // Context7 pattern: Token is valid but user doesn't exist (e.g., DB was flushed)
         res.status(404).json({
           success: false,
-          message: 'User not found'
+          message: 'User not found. Please sign in again.',
+          error: 'USER_NOT_FOUND'
         });
       }
     } catch (error) {
       console.error('Verify token controller error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while verifying token'
+        message: 'Internal server error while verifying token',
+        error: 'INTERNAL_ERROR'
       });
     }
   }

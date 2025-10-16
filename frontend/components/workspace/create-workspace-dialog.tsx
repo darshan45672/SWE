@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Loader2, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { Plus, Loader2, ArrowRight, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { cn } from "@/lib/utils";
 
@@ -68,11 +69,16 @@ const STEPS = [
   },
 ];
 
-export function CreateWorkspaceDialog() {
+interface CreateWorkspaceDialogProps {
+  children?: React.ReactNode;
+}
+
+export function CreateWorkspaceDialog({ children }: CreateWorkspaceDialogProps) {
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const { addWorkspace, addProject } = useWorkspace();
+  const [error, setError] = useState<string | null>(null);
+  const { createWorkspace, addProject } = useWorkspace();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -124,53 +130,67 @@ export function CreateWorkspaceDialog() {
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
+    setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      const workspaceId = `workspace-${Date.now()}`;
-
-      // Step 1: Add workspace
-      addWorkspace({
-        id: workspaceId,
+    try {
+      // Step 1: Create workspace via API - Context7 pattern
+      const result = await createWorkspace({
         name: values.workspaceName,
         icon: "🚀",
+        color: "bg-blue-500",
       });
 
-      // Step 2: Add first project to the workspace
-      addProject({
-        id: `project-${Date.now()}`,
-        name: values.projectName,
-        key: values.projectKey,
-        workspaceId: workspaceId,
-      });
+      if (!result.success) {
+        setError(result.message || "Failed to create workspace");
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 2: Add first project to the workspace (will be implemented later)
+      // For now, we'll just create the workspace
+      if (result.data) {
+        addProject({
+          id: `project-${Date.now()}`,
+          name: values.projectName,
+          key: values.projectKey,
+          workspaceId: result.data.id,
+        });
+      }
 
       // Reset and close
       form.reset();
       setCurrentStep(1);
       setIsLoading(false);
       setOpen(false);
-    }, 1500);
+    } catch (err) {
+      console.error("Error creating workspace:", err);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setIsLoading(false);
+    }
   };
 
   const handleOpenChange = (open: boolean) => {
     setOpen(open);
     if (!open) {
-      // Reset form and step when closing
+      // Reset form, step, and error when closing
       form.reset();
       setCurrentStep(1);
+      setError(null);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-sm font-normal"
-        >
-          <Plus className="h-4 w-4" />
-          Create workspace
-        </Button>
+        {children || (
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sm font-normal"
+          >
+            <Plus className="h-4 w-4" />
+            Create workspace
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
@@ -227,6 +247,14 @@ export function CreateWorkspaceDialog() {
             </div>
           ))}
         </div>
+
+        {/* Error Alert - Context7 pattern */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

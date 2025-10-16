@@ -33,49 +33,56 @@ export const registerValidation: ValidationChain[] = [
 
   // Extended Profile Information (Optional)
   body('bio')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
     .isLength({ max: 500 })
     .withMessage('Bio must be less than 500 characters'),
 
   body('phone')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
-    .matches(/^[\+]?[\d\s\-\(\)]+$/)
+    .matches(/^[\+]?[1-9][\d\s\-\(\)]{0,15}$/)
     .withMessage('Please provide a valid phone number'),
 
   body('location')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
     .isLength({ max: 100 })
     .withMessage('Location must be less than 100 characters'),
 
   body('website')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
-    .isURL()
-    .withMessage('Please provide a valid website URL'),
+    .custom((value) => {
+      if (!value) return true; // Allow empty values
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        throw new Error('Please provide a valid website URL');
+      }
+    }),
 
   body('company')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
     .isLength({ max: 100 })
     .withMessage('Company name must be less than 100 characters'),
 
   body('jobTitle')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
     .isLength({ max: 100 })
     .withMessage('Job title must be less than 100 characters'),
 
   body('timezone')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
     .isLength({ max: 50 })
     .withMessage('Invalid timezone'),
 
   body('language')
-    .optional()
+    .optional({ values: 'falsy' }) // Context7 pattern: handle empty strings as optional
     .trim()
     .isLength({ min: 2, max: 5 })
     .withMessage('Invalid language code')

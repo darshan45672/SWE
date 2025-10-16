@@ -3,6 +3,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import prisma from './lib/prisma'
 import authRoutes from './auth/routes'
+import workspaceRoutes from './routes/workspace'
+import projectRoutes from './routes/project'
 
 // Load environment variables
 dotenv.config()
@@ -29,6 +31,12 @@ app.get('/health', (req, res) => {
 
 // Auth routes
 app.use('/api/v1/auth', authRoutes)
+
+// Workspace routes - Context7 pattern with authentication
+app.use('/api/v1/workspaces', workspaceRoutes)
+
+// Project routes - Context7 pattern with authentication
+app.use('/api/v1/projects', projectRoutes)
 
 // API routes
 app.get('/api/v1', (req, res) => {

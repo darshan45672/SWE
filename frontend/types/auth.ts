@@ -41,11 +41,31 @@ export interface VerifyEmailFormData {
 }
 
 export interface UpdateProfileFormData {
+  // Basic Information
   name?: string;
   email?: string;
+  bio?: string;
+  
+  // Contact Information
+  phone?: string;
+  location?: string;
+  website?: string;
+  
+  // Professional Information
+  company?: string;
+  jobTitle?: string;
+  
+  // Preferences
+  timezone?: string;
+  language?: string;
+  
+  // Password Update (optional)
   currentPassword?: string;
   newPassword?: string;
   confirmPassword?: string;
+  
+  // Avatar Update (optional)
+  avatar?: string;
 }
 
 export interface DeleteAccountFormData {

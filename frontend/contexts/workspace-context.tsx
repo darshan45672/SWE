@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Workspace, mockWorkspaces } from "@/types/workspace";
 import { Board, Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
 import { mockBoard, mockUsers } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/auth-context";
 
 interface Project {
   id: string;
@@ -26,17 +27,20 @@ interface CreateIssueData {
 }
 
 interface WorkspaceContextType {
-  currentWorkspace: Workspace;
+  currentWorkspace: Workspace | null;
   currentProject: Project | null;
   currentUser: User;
   workspaces: Workspace[];
   projects: Project[];
   notifications: Notification[];
   unreadCount: number;
+  loading: boolean;
   switchWorkspace: (workspaceId: string) => void;
   switchProject: (projectId: string) => void;
   addProject: (project: Omit<Project, "board">) => void;
   addWorkspace: (workspace: Workspace) => void;
+  createWorkspace: (workspaceData: { name: string; icon?: string; color?: string }) => Promise<{ success: boolean; message?: string; data?: Workspace }>;
+  fetchWorkspaces: () => Promise<void>;
   addIssue: (issueData: CreateIssueData) => void;
   updateIssue: (issueId: string, issueData: Partial<CreateIssueData>) => void;
   deleteIssue: (issueId: string) => void;
@@ -100,21 +104,139 @@ const mockProjects: Project[] = [
 ];
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(
-    mockWorkspaces[0]
-  );
-  const [currentProject, setCurrentProject] = useState<Project | null>(
-    mockProjects[0]
-  );
+  const { token } = useAuth();
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [allProjects, setAllProjects] = useState<Project[]>(mockProjects);
-  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>(mockWorkspaces);
+  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Current user (in a real app, this would come from auth)
   const currentUser = mockUsers[0];
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Fetch workspaces from API - Context7 pattern
+  const fetchWorkspaces = async () => {
+    if (!token) {
+      console.log('No token available, skipping workspace fetch');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('Fetching workspaces with token:', token ? 'Token present' : 'No token');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/workspaces`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch workspaces response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch workspaces failed:', response.status, errorText);
+        throw new Error(`Failed to fetch workspaces: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched workspaces:', data);
+      
+      if (data.success && data.data) {
+        setAllWorkspaces(data.data);
+        
+        // Set first workspace as current if none selected
+        if (!currentWorkspace && data.data.length > 0) {
+          setCurrentWorkspace(data.data[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching workspaces:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create new workspace - Context7 pattern
+  const createWorkspace = async (workspaceData: { name: string; icon?: string; color?: string }): Promise<{ success: boolean; message?: string; data?: Workspace }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    console.log('Creating workspace with data:', workspaceData);
+    console.log('Using token:', token ? 'Token present' : 'No token');
+    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/workspaces`;
+      console.log('Sending POST request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workspaceData),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        const textResponse = await response.text();
+        console.error('Response text:', textResponse);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to create workspace',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Add to local state
+        setAllWorkspaces(prev => [...prev, data.data]);
+        setCurrentWorkspace(data.data);
+        
+        return {
+          success: true,
+          message: data.message,
+          data: data.data,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error creating workspace:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create workspace',
+      };
+    }
+  };
+
+  // Fetch workspaces on mount and when token changes
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [token]);
 
   // Helper function to create notification
   const createNotification = (
@@ -157,7 +279,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (project) {
       setCurrentProject(project);
       // Optionally switch workspace if project belongs to different workspace
-      if (project.workspaceId !== currentWorkspace.id) {
+      if (currentWorkspace && project.workspaceId !== currentWorkspace.id) {
         const workspace = allWorkspaces.find(
           (w) => w.id === project.workspaceId
         );
@@ -375,9 +497,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   // Get projects for current workspace
-  const projects = allProjects.filter(
-    (p) => p.workspaceId === currentWorkspace.id
-  );
+  const projects = currentWorkspace 
+    ? allProjects.filter((p) => p.workspaceId === currentWorkspace.id)
+    : [];
 
   // Notification management functions
   const markNotificationAsRead = (notificationId: string) => {
@@ -410,10 +532,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         projects,
         notifications,
         unreadCount,
+        loading,
         switchWorkspace,
         switchProject,
         addProject,
         addWorkspace,
+        createWorkspace,
+        fetchWorkspaces,
         addIssue,
         updateIssue,
         deleteIssue,

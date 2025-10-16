@@ -53,33 +53,54 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
         if (savedToken) {
           setToken(savedToken);
           
-          // Verify token with backend
-          const response = await fetch(`${API_BASE_URL}/api/v1/auth/verify`, {
-            headers: {
-              'Authorization': `Bearer ${savedToken}`,
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-          });
+          // Context7 pattern: Add timeout to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, 5000); // 5 second timeout
+          
+          try {
+            // Verify token with backend
+            const response = await fetch(`${API_BASE_URL}/api/v1/auth/verify`, {
+              headers: {
+                'Authorization': `Bearer ${savedToken}`,
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              signal: controller.signal,
+            });
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.user) {
-              setUser(data.user);
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.user) {
+                setUser(data.user);
+              } else {
+                // Token is invalid or user not found, clear it
+                localStorage.removeItem('auth-token');
+                document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                setToken(null);
+              }
             } else {
-              // Token is invalid, clear it
+              // Token verification failed (401, 404, etc.), clear it
               localStorage.removeItem('auth-token');
+              document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
               setToken(null);
             }
-          } else {
-            // Token verification failed, clear it
+          } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            
+            // Clear stale token on any error
             localStorage.removeItem('auth-token');
+            document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             setToken(null);
           }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
         localStorage.removeItem('auth-token');
+        document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         setToken(null);
       } finally {
         setLoading(false);
@@ -91,9 +112,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
 
   const login = async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Making login request to:', `${API_BASE_URL}/api/v1/auth/login`);
-      console.log('📧 Email:', email);
-      
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
@@ -103,32 +121,18 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
         body: JSON.stringify({ email, password }),
       });
 
-      console.log('📊 Login response status:', response.status);
-      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Login response error:', errorText);
         
         try {
           const errorData = JSON.parse(errorText);
           const errorMessage = errorData.message || `Server error: ${response.status}`;
-          
-          // Context7-inspired error categorization
-          if (response.status === 401) {
-            console.error('🔒 Authentication failed - Invalid credentials');
-          } else if (response.status >= 500) {
-            console.error('🚨 Server error detected');
-          } else {
-            console.error('⚠️ Client error:', errorMessage);
-          }
           
           return {
             success: false,
             message: errorMessage,
           };
         } catch (parseError) {
-          console.error('💥 Failed to parse error response:', parseError);
           return {
             success: false,
             message: `Server error: ${response.status} - ${errorText}`,
@@ -137,12 +141,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
       }
 
       const data: AuthResponse = await response.json();
-      console.log('✅ Login response data:', { 
-        success: data.success, 
-        hasUser: !!data.user, 
-        hasToken: !!data.token,
-        message: data.message 
-      });
 
       if (data.success && data.user && data.token) {
         setUser(data.user);
@@ -165,15 +163,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
 
   const register = async (formData: RegisterFormData): Promise<AuthResponse> => {
     try {
-      console.log('📝 Making registration request to:', `${API_BASE_URL}/api/v1/auth/register`);
-      console.log('📋 Request data:', { 
-        email: formData.email, 
-        name: formData.name, 
-        password: '***', 
-        confirmPassword: '***',
-        hasExtendedProfile: !!(formData.bio || formData.phone || formData.location || formData.company || formData.jobTitle)
-      });
-      
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
@@ -183,36 +172,18 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
         body: JSON.stringify(formData),
       });
 
-      console.log('📊 Registration response status:', response.status);
-      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Registration response error:', errorText);
         
         try {
           const errorData = JSON.parse(errorText);
           const errorMessage = errorData.message || `Server error: ${response.status}`;
-          
-          // Context7-inspired error categorization for registration
-          if (response.status === 400) {
-            if (errorMessage.includes('already exists')) {
-              console.error('👤 User already exists - suggesting login instead');
-            } else {
-              console.error('📝 Registration validation failed');
-            }
-          } else if (response.status >= 500) {
-            console.error('🚨 Server error during registration');
-          } else {
-            console.error('⚠️ Registration client error:', errorMessage);
-          }
           
           return {
             success: false,
             message: errorMessage,
           };
         } catch (parseError) {
-          console.error('💥 Failed to parse registration error response:', parseError);
           return {
             success: false,
             message: `Server error: ${response.status} - ${errorText}`,
@@ -221,12 +192,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
       }
 
       const data: AuthResponse = await response.json();
-      console.log('✅ Registration response data:', { 
-        success: data.success, 
-        hasUser: !!data.user, 
-        hasToken: !!data.token,
-        message: data.message 
-      });
 
       if (data.success && data.user && data.token) {
         setUser(data.user);
@@ -269,6 +234,11 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
       
       // Clear the cookie
       document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      
+      // Redirect to sign-in page after logout
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/signin';
+      }
     }
   };
 
@@ -281,6 +251,15 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
         };
       }
 
+      // Context7 pattern: Log request in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Updating profile:', {
+          url: `${API_BASE_URL}/api/v1/auth/profile`,
+          hasToken: !!token,
+          dataKeys: Object.keys(data),
+        });
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/profile`, {
         method: 'PUT',
         headers: {
@@ -291,7 +270,55 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
         body: JSON.stringify(data),
       });
 
+      // Context7 pattern: Handle non-OK responses
+      if (!response.ok) {
+        const errorText = await response.text();
+        
+        // Log each value separately to avoid serialization issues
+        console.error('Profile update HTTP error:');
+        console.error('Status:', response.status);
+        console.error('Status Text:', response.statusText);
+        console.error('Response Body:', errorText);
+
+        try {
+          const errorData = JSON.parse(errorText);
+          return {
+            success: false,
+            message: errorData.message || `Server error: ${response.status}`,
+            ...errorData
+          };
+        } catch (parseError) {
+          return {
+            success: false,
+            message: `Server error: ${response.status} - ${errorText}`,
+          };
+        }
+      }
+
+      // Context7 pattern: Handle non-JSON responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Invalid response type:', contentType);
+        return {
+          success: false,
+          message: 'Server returned an invalid response',
+        };
+      }
+
       const result: ProfileResponse = await response.json();
+
+      // Context7 pattern: Log success in development
+      if (process.env.NODE_ENV === 'development') {
+        if (result.success) {
+          console.log('Profile update successful');
+        } else {
+          console.error('Profile update failed:', {
+            status: response.status,
+            message: result.message,
+            errors: (result as any).errors
+          });
+        }
+      }
 
       if (result.success && result.user) {
         setUser(result.user);
@@ -299,7 +326,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
 
       return result;
     } catch (error) {
-      console.error('Update profile error:', error);
+      console.error('Update profile network error:', error);
       return {
         success: false,
         message: 'Network error occurred during profile update',

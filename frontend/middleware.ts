@@ -16,12 +16,6 @@ export function middleware(request: NextRequest) {
   // Get the token from cookies (Context7 security pattern)
   const token = request.cookies.get('auth-token')?.value
   
-  console.log('🔍 Middleware check:', {
-    pathname,
-    hasToken: !!token,
-    timestamp: new Date().toISOString()
-  })
-  
   // Check route types
   const isProtectedRoute = protectedRoutes.some(route => 
     pathname === route || pathname.startsWith(route + '/')
@@ -35,25 +29,26 @@ export function middleware(request: NextRequest) {
   
   // Allow public routes without authentication
   if (isPublicRoute) {
-    console.log('✅ Public route access allowed:', pathname)
     return NextResponse.next()
   }
   
-  // Context7 pattern: Redirect unauthenticated users from protected routes
-  if (isProtectedRoute && !token) {
-    console.log('🔒 Protected route access denied - redirecting to signin:', pathname)
-    const url = new URL('/auth/signin', request.url)
-    url.searchParams.set('from', pathname)
-    return NextResponse.redirect(url)
+  // Context7 pattern: For protected routes, let client-side auth handle verification
+  // Don't redirect here to avoid redirect loops with stale tokens
+  if (isProtectedRoute) {
+    if (!token) {
+      const url = new URL('/auth/signin', request.url)
+      url.searchParams.set('from', pathname)
+      return NextResponse.redirect(url)
+    }
+    return NextResponse.next()
   }
   
-  // Context7 pattern: Redirect authenticated users away from auth pages
-  if (isAuthRoute && token) {
-    console.log('👤 Already authenticated - redirecting to dashboard:', pathname)
-    return NextResponse.redirect(new URL('/', request.url))
+  // Context7 pattern: Allow access to auth routes regardless of token
+  // Client-side auth context will handle the actual verification and redirect
+  if (isAuthRoute) {
+    return NextResponse.next()
   }
   
-  console.log('✅ Route access granted:', pathname)
   return NextResponse.next()
 }
 

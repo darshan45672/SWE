@@ -39,6 +39,25 @@ export interface AuthResponse {
 export class AuthService {
   static async register(data: RegisterData): Promise<AuthResponse> {
     try {
+      // Context7 Debug Pattern: Log incoming data for analysis
+      console.log('🔍 Context7 Registration Debug - Incoming data:', {
+        email: data.email,
+        name: data.name,
+        hasPassword: !!data.password,
+        hasConfirmPassword: !!data.confirmPassword,
+        acceptTerms: data.acceptTerms,
+        // Extended profile fields
+        avatar: data.avatar || 'undefined',
+        bio: data.bio || 'undefined', 
+        phone: data.phone || 'undefined',
+        location: data.location || 'undefined',
+        website: data.website || 'undefined',
+        company: data.company || 'undefined',
+        jobTitle: data.jobTitle || 'undefined',
+        timezone: data.timezone || 'undefined',
+        language: data.language || 'undefined'
+      });
+
       const { 
         email, 
         name, 
@@ -53,6 +72,14 @@ export class AuthService {
         timezone,
         language = "en"
       } = data;
+
+      // Context7 Security Pattern: Enhanced validation
+      if (!email || !name || !password) {
+        return {
+          success: false,
+          message: 'Required fields (email, name, password) are missing'
+        };
+      }
 
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
@@ -69,23 +96,31 @@ export class AuthService {
       // Hash password
       const hashedPassword = await hashPassword(password);
 
+      // Context7 Data Preparation Pattern: Prepare user data for database
+      const userData = {
+        email,
+        name,
+        password: hashedPassword,
+        avatar: avatar || undefined,
+        bio: bio || undefined,
+        phone: phone || undefined,
+        location: location || undefined,
+        website: website || undefined,
+        company: company || undefined,
+        jobTitle: jobTitle || undefined,
+        timezone: timezone || undefined,
+        language: language || "en",
+        emailVerified: true // Disabled email verification - users can access immediately
+      };
+
+      console.log('🔍 Context7 Database Debug - Data being saved:', {
+        ...userData,
+        password: '*** HIDDEN ***'
+      });
+
       // Create user with all profile data
       const user = await prisma.user.create({
-        data: {
-          email,
-          name,
-          password: hashedPassword,
-          avatar,
-          bio,
-          phone,
-          location,
-          website,
-          company,
-          jobTitle,
-          timezone,
-          language,
-          emailVerified: false // Context7 pattern: require email verification
-        }
+        data: userData
       });
 
       // Generate token
@@ -198,8 +233,6 @@ export class AuthService {
     updateData: UpdateProfileData
   ): Promise<ProfileResponse> {
     try {
-      console.log('🔄 Updating user profile:', { userId, updateData });
-
       // Validate user exists
       const existingUser = await prisma.user.findUnique({
         where: { id: userId }
@@ -212,11 +245,36 @@ export class AuthService {
         };
       }
 
+      // Check if email is being updated and if it's already in use
+      if (updateData.email && updateData.email !== existingUser.email) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email: updateData.email }
+        });
+
+        if (emailExists) {
+          return {
+            success: false,
+            message: 'Email address is already in use'
+          };
+        }
+      }
+
+      // Context7 pattern: Clean empty optional fields
+      const cleanedData: any = {};
+      Object.keys(updateData).forEach(key => {
+        const value = updateData[key as keyof UpdateProfileData];
+        if (value !== undefined && value !== '') {
+          cleanedData[key] = value;
+        } else if (value === '') {
+          cleanedData[key] = null; // Set to null for empty strings
+        }
+      });
+
       // Update user profile with Context7 pattern
       const user = await prisma.user.update({
         where: { id: userId },
         data: {
-          ...updateData,
+          ...cleanedData,
           updatedAt: new Date()
         },
         select: {
@@ -238,15 +296,13 @@ export class AuthService {
         }
       });
 
-      console.log('✅ Profile updated successfully:', user.id);
-
       return {
         success: true,
         message: 'Profile updated successfully',
         user
       };
     } catch (error) {
-      console.error('❌ Update user profile error:', error);
+      console.error('Update user profile error:', error);
       return {
         success: false,
         message: 'Failed to update profile. Please try again.'

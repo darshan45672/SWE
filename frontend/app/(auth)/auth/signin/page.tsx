@@ -77,7 +77,7 @@ export default function SignInPage() {
         router.push(redirectTo);
       } else {
         console.error('❌ Login failed:', result.message);
-        setApiError(result.message);
+        setApiError(result.message || 'Login failed. Please try again.');
       }
     } catch (error) {
       console.error("Login error:", error);

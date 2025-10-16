@@ -1,0 +1,73 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function flushDatabase() {
+  try {
+    console.log('🗑️  Starting database flush...');
+    
+    // Delete all records from all tables
+    // Order matters due to relationships - delete children first
+    
+    console.log('� Deleting messages...');
+    const messages = await prisma.message.deleteMany({});
+    console.log(`   ✓ Deleted ${messages.count} messages`);
+    
+    console.log('👥 Deleting chat room participants...');
+    const chatRoomParticipants = await prisma.chatRoomParticipant.deleteMany({});
+    console.log(`   ✓ Deleted ${chatRoomParticipants.count} chat room participants`);
+    
+    console.log('🏠 Deleting chat rooms...');
+    const chatRooms = await prisma.chatRoom.deleteMany({});
+    console.log(`   ✓ Deleted ${chatRooms.count} chat rooms`);
+    
+    console.log('🔔 Deleting notifications...');
+    const notifications = await prisma.notification.deleteMany({});
+    console.log(`   ✓ Deleted ${notifications.count} notifications`);
+    
+    console.log('💬 Deleting comments...');
+    const comments = await prisma.comment.deleteMany({});
+    console.log(`   ✓ Deleted ${comments.count} comments`);
+    
+    console.log('� Deleting issues...');
+    const issues = await prisma.issue.deleteMany({});
+    console.log(`   ✓ Deleted ${issues.count} issues`);
+    
+    console.log('📁 Deleting projects...');
+    const projects = await prisma.project.deleteMany({});
+    console.log(`   ✓ Deleted ${projects.count} projects`);
+    
+    console.log('🏢 Deleting workspace members...');
+    const workspaceMembers = await prisma.workspaceMember.deleteMany({});
+    console.log(`   ✓ Deleted ${workspaceMembers.count} workspace members`);
+    
+    console.log('🏢 Deleting workspaces...');
+    const workspaces = await prisma.workspace.deleteMany({});
+    console.log(`   ✓ Deleted ${workspaces.count} workspaces`);
+    
+    console.log('� Deleting users...');
+    const users = await prisma.user.deleteMany({});
+    console.log(`   ✓ Deleted ${users.count} users`);
+    
+    console.log('✅ Database flushed successfully!');
+    console.log('\n📊 Summary:');
+    console.log(`   - Users: ${users.count}`);
+    console.log(`   - Workspaces: ${workspaces.count}`);
+    console.log(`   - Workspace Members: ${workspaceMembers.count}`);
+    console.log(`   - Projects: ${projects.count}`);
+    console.log(`   - Issues: ${issues.count}`);
+    console.log(`   - Comments: ${comments.count}`);
+    console.log(`   - Notifications: ${notifications.count}`);
+    console.log(`   - Chat Rooms: ${chatRooms.count}`);
+    console.log(`   - Chat Room Participants: ${chatRoomParticipants.count}`);
+    console.log(`   - Messages: ${messages.count}`);
+    
+  } catch (error) {
+    console.error('❌ Error flushing database:', error);
+    process.exit(1);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+flushDatabase();

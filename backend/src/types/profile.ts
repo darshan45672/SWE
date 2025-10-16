@@ -1,6 +1,7 @@
 // Profile Update Types - Context7 Pattern
 export interface UpdateProfileData {
   name?: string;
+  email?: string;
   bio?: string;
   phone?: string;
   location?: string;
