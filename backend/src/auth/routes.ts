@@ -3,9 +3,12 @@ import { AuthController } from '../controllers/auth';
 import { requireAuth } from '../auth/middleware';
 import { 
   registerValidation, 
-  loginValidation, 
-  updateProfileValidation 
+  loginValidation
 } from '../validators/auth';
+import { 
+  updateProfileValidation,
+  deleteAccountValidation 
+} from '../validators/profile';
 import { handleValidationErrors } from '../validators/middleware';
 
 const router = Router();
@@ -35,7 +38,12 @@ router.put('/profile',
   AuthController.updateProfile
 );
 
-router.delete('/account', requireAuth, AuthController.deleteAccount);
+router.delete('/account', 
+  requireAuth, 
+  deleteAccountValidation,
+  handleValidationErrors,
+  AuthController.deleteAccount
+);
 
 router.get('/verify', requireAuth, AuthController.verifyToken);
 

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthService, RegisterData, LoginData } from '../services/auth';
 import { setTokenCookie, clearTokenCookie } from '../auth/jwt';
 import { AuthenticatedRequest } from '../auth/middleware';
+import { UpdateProfileData } from '../types/profile';
 
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
@@ -110,21 +111,16 @@ export class AuthController {
   static async updateProfile(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as AuthenticatedRequest).user.userId;
-      const updateData = req.body;
+      const updateData: UpdateProfileData = req.body;
 
-      const user = await AuthService.updateUserProfile(userId, updateData);
+      console.log('📝 Profile update request:', { userId, updateData });
 
-      if (user) {
-        res.status(200).json({
-          success: true,
-          message: 'Profile updated successfully',
-          user
-        });
+      const result = await AuthService.updateUserProfile(userId, updateData);
+
+      if (result.success) {
+        res.status(200).json(result);
       } else {
-        res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
+        res.status(400).json(result);
       }
     } catch (error) {
       console.error('Update profile controller error:', error);
@@ -138,21 +134,26 @@ export class AuthController {
   static async deleteAccount(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as AuthenticatedRequest).user.userId;
-      const success = await AuthService.deleteUser(userId);
+      const { password } = req.body;
 
-      if (success) {
+      console.log('🗑️ Account deletion request:', { userId });
+
+      if (!password) {
+        res.status(400).json({
+          success: false,
+          message: 'Password is required to delete account'
+        });
+        return;
+      }
+
+      const result = await AuthService.deleteUser(userId, password);
+
+      if (result.success) {
         // Clear the authentication cookie
         clearTokenCookie(res);
-        
-        res.status(200).json({
-          success: true,
-          message: 'Account deleted successfully'
-        });
+        res.status(200).json(result);
       } else {
-        res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
+        res.status(400).json(result);
       }
     } catch (error) {
       console.error('Delete account controller error:', error);

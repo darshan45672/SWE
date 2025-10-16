@@ -1,41 +1,28 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { 
+  SignInFormData, 
+  RegisterFormData,
+  AuthResponse,
+  ProfileResponse,
+  DeleteAccountResponse,
+  UpdateProfileFormData,
+  DeleteAccountFormData
+} from '@/types/auth';
+import { User } from '@/types/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-  bio?: string;
-  phone?: string;
-  location?: string;
-  website?: string;
-  timezone?: string;
-  language?: string;
-  company?: string;
-  jobTitle?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  user?: User;
-  token?: string;
-  message: string;
-}
 
 export interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
-  register: (email: string, name: string, password: string, confirmPassword: string) => Promise<AuthResponse>;
+  register: (data: RegisterFormData) => Promise<AuthResponse>;
   logout: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<AuthResponse>;
+  updateProfile: (data: UpdateProfileFormData) => Promise<ProfileResponse>;
+  deleteAccount: (data: DeleteAccountFormData) => Promise<DeleteAccountResponse>;
   isAuthenticated: boolean;
 }
 
@@ -176,15 +163,16 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
     }
   };
 
-  const register = async (
-    email: string,
-    name: string,
-    password: string,
-    confirmPassword: string
-  ): Promise<AuthResponse> => {
+  const register = async (formData: RegisterFormData): Promise<AuthResponse> => {
     try {
       console.log('📝 Making registration request to:', `${API_BASE_URL}/api/v1/auth/register`);
-      console.log('📋 Request data:', { email, name, password: '***', confirmPassword: '***' });
+      console.log('📋 Request data:', { 
+        email: formData.email, 
+        name: formData.name, 
+        password: '***', 
+        confirmPassword: '***',
+        hasExtendedProfile: !!(formData.bio || formData.phone || formData.location || formData.company || formData.jobTitle)
+      });
       
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: 'POST',
@@ -192,7 +180,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ email, name, password, confirmPassword }),
+        body: JSON.stringify(formData),
       });
 
       console.log('📊 Registration response status:', response.status);
@@ -284,7 +272,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
     }
   };
 
-  const updateProfile = async (data: Partial<User>): Promise<AuthResponse> => {
+  const updateProfile = async (data: UpdateProfileFormData): Promise<ProfileResponse> => {
     try {
       if (!token) {
         return {
@@ -303,7 +291,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
         body: JSON.stringify(data),
       });
 
-      const result: AuthResponse = await response.json();
+      const result: ProfileResponse = await response.json();
 
       if (result.success && result.user) {
         setUser(result.user);
@@ -319,6 +307,52 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
     }
   };
 
+  const deleteAccount = async (data: DeleteAccountFormData): Promise<DeleteAccountResponse> => {
+    try {
+      if (!token) {
+        return {
+          success: false,
+          message: 'Not authenticated',
+        };
+      }
+
+      if (!data.confirmDeletion) {
+        return {
+          success: false,
+          message: 'Please confirm account deletion',
+        };
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/delete-account`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ password: data.password }),
+      });
+
+      const result: DeleteAccountResponse = await response.json();
+
+      if (result.success) {
+        // Clear all auth state
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem('auth-token');
+        document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Delete account error:', error);
+      return {
+        success: false,
+        message: 'Network error occurred during account deletion',
+      };
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -327,6 +361,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
     register,
     logout,
     updateProfile,
+    deleteAccount,
     isAuthenticated: !!user && !!token,
   };
 

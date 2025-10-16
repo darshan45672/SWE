@@ -3,92 +3,106 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, Check, X, AlertCircle } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Loader2, Check, X, AlertCircle, User, Mail, Phone, MapPin, Building, Briefcase, Clock, Globe2, Shield, Settings } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { isValidEmail, validatePassword } from "@/lib/auth-utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useAuth } from "@/contexts/auth-context";
-import type { RegisterFormData } from "@/types/auth";
+import { RegisterFormData } from "@/types/auth";
+import { validatePassword } from "@/lib/auth-utils";
+import { completeRegistrationSchema } from "@/lib/registration-schemas";
+
+const TIMEZONES = [
+  { value: "UTC", label: "UTC (Coordinated Universal Time)" },
+  { value: "US/Eastern", label: "Eastern Time (UTC-5/-4)" },
+  { value: "US/Central", label: "Central Time (UTC-6/-5)" },
+  { value: "US/Mountain", label: "Mountain Time (UTC-7/-6)" },
+  { value: "US/Pacific", label: "Pacific Time (UTC-8/-7)" },
+  { value: "Europe/London", label: "London (UTC+0/+1)" },
+  { value: "Europe/Paris", label: "Paris (UTC+1/+2)" },
+  { value: "Europe/Berlin", label: "Berlin (UTC+1/+2)" },
+  { value: "Asia/Tokyo", label: "Tokyo (UTC+9)" },
+  { value: "Asia/Shanghai", label: "Shanghai (UTC+8)" },
+  { value: "Asia/Kolkata", label: "India (UTC+5:30)" },
+  { value: "Australia/Sydney", label: "Sydney (UTC+10/+11)" },
+];
+
+const LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "it", label: "Italiano" },
+  { value: "pt", label: "Português" },
+  { value: "ru", label: "Русский" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
+  { value: "zh", label: "中文" },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-  const [formData, setFormData] = useState<RegisterFormData>({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    acceptTerms: false,
-  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof RegisterFormData, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
 
-  const passwordValidation = validatePassword(formData.password);
+  // Form state management using Context7 patterns
+  const form = useForm<RegisterFormData>({
+    resolver: zodResolver(completeRegistrationSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      bio: "",
+      phone: "",
+      location: "",
+      website: "",
+      company: "",
+      jobTitle: "",
+      timezone: "",
+      language: "en",
+      password: "",
+      confirmPassword: "",
+      acceptTerms: false,
+    },
+    mode: "onChange",
+  });
 
-  const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof RegisterFormData, string>> = {};
+  const password = form.watch("password");
+  const confirmPassword = form.watch("confirmPassword");
+  const passwordValidation = validatePassword(password || "");
 
-    if (!formData.name) {
-      newErrors.name = "Name is required";
-    } else if (formData.name.length < 2) {
-      newErrors.name = "Name must be at least 2 characters";
-    }
-
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!isValidEmail(formData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (!passwordValidation.isValid) {
-      newErrors.password = "Password does not meet requirements";
-    }
-
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    if (!formData.acceptTerms) {
-      newErrors.acceptTerms = "You must accept the terms and conditions";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate()) return;
-
+  // Form submission using Context7 patterns
+  const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     setApiError("");
-
+    
     try {
-      const result = await register(
-        formData.email,
-        formData.name,
-        formData.password,
-        formData.confirmPassword
-      );
+      console.log("🚀 Submitting comprehensive registration:", {
+        hasBasicInfo: !!(data.name && data.email),
+        hasContactInfo: !!(data.phone || data.location || data.website),
+        hasProfessionalInfo: !!(data.company || data.jobTitle),
+        hasPreferences: !!(data.timezone || data.language),
+        termsAccepted: data.acceptTerms
+      });
       
+      const result = await register(data);
+
       if (result.success) {
-        // Redirect to main app after successful registration
-        router.push("/");
+        console.log("✅ Registration successful, redirecting to verification");
+        router.push("/auth/verify-email");
       } else {
-        setApiError(result.message);
+        setApiError(result.message || "Registration failed. Please try again.");
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -100,272 +114,535 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Create an account"
-      description="Enter your information to get started"
+      title="Create Your Account"
+      description="Join our platform and start managing your projects effectively"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* API Error Alert */}
-        {apiError && (
-          <Alert variant="destructive" className="border-destructive/20">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{apiError}</AlertDescription>
-          </Alert>
-        )}
+      <div className="w-full max-w-4xl mx-auto">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            {/* API Error */}
+            {apiError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{apiError}</AlertDescription>
+              </Alert>
+            )}
 
-        {/* Name */}
-        <div className="space-y-2">
-          <Label htmlFor="name">Full Name</Label>
-          <Input
-            id="name"
-            type="text"
-            placeholder="John Doe"
-            value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
-            className={errors.name ? "border-destructive" : ""}
-            disabled={isLoading}
-          />
-          {errors.name && (
-            <p className="text-sm text-destructive">{errors.name}</p>
-          )}
-        </div>
+            {/* Basic Information Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Basic Information
+                </CardTitle>
+                <CardDescription>
+                  Essential information to get started
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Full Name */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Full Name *
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="John Doe"
+                            {...field}
+                            className="h-11"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-        {/* Email */}
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="name@example.com"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className={errors.email ? "border-destructive" : ""}
-            disabled={isLoading}
-          />
-          {errors.email && (
-            <p className="text-sm text-destructive">{errors.email}</p>
-          )}
-        </div>
+                  {/* Email */}
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          Email Address *
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="john@example.com"
+                            {...field}
+                            className="h-11"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-        {/* Password */}
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Create a password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className={errors.password ? "border-destructive pr-10" : "pr-10"}
-              disabled={isLoading}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              disabled={isLoading}
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-          {errors.password && (
-            <p className="text-sm text-destructive">{errors.password}</p>
-          )}
-          
-          {/* Password strength indicator */}
-          {formData.password && (
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                {passwordValidation.hasMinLength ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <X className="h-4 w-4 text-muted-foreground" />
+                {/* Bio */}
+                <FormField
+                  control={form.control}
+                  name="bio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bio</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell us about yourself..."
+                          className="min-h-[100px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Brief description for your profile (max 500 characters)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Contact Information Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Contact Information
+                </CardTitle>
+                <CardDescription>
+                  Help others connect with you (all optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {/* Phone Number */}
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Phone Number
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          placeholder="+1 (555) 123-4567"
+                          {...field}
+                          className="h-11"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Location */}
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Location
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="San Francisco, CA"
+                          {...field}
+                          className="h-11"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Website */}
+                <div className="sm:col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Globe2 className="h-4 w-4" />
+                          Website
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="url"
+                            placeholder="https://johndoe.com"
+                            {...field}
+                            className="h-11"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Your personal website, portfolio, or LinkedIn profile
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Professional Information Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Professional Information
+                </CardTitle>
+                <CardDescription>
+                  Share your professional background (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {/* Company */}
+                <FormField
+                  control={form.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Building className="h-4 w-4" />
+                        Company
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Acme Inc."
+                          {...field}
+                          className="h-11"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Job Title */}
+                <FormField
+                  control={form.control}
+                  name="jobTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Job Title
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Software Engineer"
+                          {...field}
+                          className="h-11"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Preferences Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Preferences
+                </CardTitle>
+                <CardDescription>
+                  Customize your experience (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {/* Timezone */}
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Timezone
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select your timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {TIMEZONES.map((timezone) => (
+                            <SelectItem key={timezone.value} value={timezone.value}>
+                              {timezone.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Language */}
+                <FormField
+                  control={form.control}
+                  name="language"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Globe2 className="h-4 w-4" />
+                        Language
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || "en"}>
+                        <FormControl>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select your language" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {LANGUAGES.map((language) => (
+                            <SelectItem key={language.value} value={language.value}>
+                              {language.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Account Security Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Account Security
+                </CardTitle>
+                <CardDescription>
+                  Secure your account with a strong password
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Password */}
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password *</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Create a strong password"
+                              {...field}
+                              className="h-11 pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Confirm Password */}
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password *</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirm your password"
+                              {...field}
+                              className="h-11 pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        {password && confirmPassword && password !== confirmPassword && (
+                          <p className="text-sm text-destructive flex items-center gap-2">
+                            <X className="h-4 w-4" />
+                            Passwords do not match
+                          </p>
+                        )}
+                        {password && confirmPassword && password === confirmPassword && (
+                          <p className="text-sm text-green-600 flex items-center gap-2">
+                            <Check className="h-4 w-4" />
+                            Passwords match
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Password Strength Indicator */}
+                {password && (
+                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                    <h4 className="text-sm font-medium">Password Strength</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        {passwordValidation.hasMinLength ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className={passwordValidation.hasMinLength ? "text-green-600" : "text-muted-foreground"}>
+                          8+ characters
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordValidation.hasUpperCase ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className={passwordValidation.hasUpperCase ? "text-green-600" : "text-muted-foreground"}>
+                          Uppercase
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordValidation.hasLowerCase ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className={passwordValidation.hasLowerCase ? "text-green-600" : "text-muted-foreground"}>
+                          Lowercase
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordValidation.hasNumber ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className={passwordValidation.hasNumber ? "text-green-600" : "text-muted-foreground"}>
+                          Number
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordValidation.hasSpecialChar ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className={passwordValidation.hasSpecialChar ? "text-green-600" : "text-muted-foreground"}>
+                          Special character
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 )}
-                <span className={passwordValidation.hasMinLength ? "text-green-500" : "text-muted-foreground"}>
-                  At least 8 characters
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {passwordValidation.hasUpperCase ? (
-                  <Check className="h-4 w-4 text-green-500" />
+
+                {/* Terms and Conditions */}
+                <FormField
+                  control={form.control}
+                  name="acceptTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm cursor-pointer">
+                          I agree to the{" "}
+                          <Link href="/terms" className="text-primary hover:underline">
+                            Terms of Service
+                          </Link>{" "}
+                          and{" "}
+                          <Link href="/privacy" className="text-primary hover:underline">
+                            Privacy Policy
+                          </Link>{" "}
+                          *
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Submit Button */}
+            <div className="flex flex-col gap-4">
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                size="lg"
+                className="w-full"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Account...
+                  </>
                 ) : (
-                  <X className="h-4 w-4 text-muted-foreground" />
+                  <>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Create Account
+                  </>
                 )}
-                <span className={passwordValidation.hasUpperCase ? "text-green-500" : "text-muted-foreground"}>
-                  One uppercase letter
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {passwordValidation.hasLowerCase ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <X className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className={passwordValidation.hasLowerCase ? "text-green-500" : "text-muted-foreground"}>
-                  One lowercase letter
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {passwordValidation.hasNumber ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <X className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className={passwordValidation.hasNumber ? "text-green-500" : "text-muted-foreground"}>
-                  One number
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {passwordValidation.hasSpecialChar ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <X className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className={passwordValidation.hasSpecialChar ? "text-green-500" : "text-muted-foreground"}>
-                  One special character
-                </span>
-              </div>
+              </Button>
+
+              {/* Sign in link */}
+              <p className="text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <Link href="/auth/signin" className="text-primary hover:underline">
+                  Sign in
+                </Link>
+              </p>
             </div>
-          )}
-        </div>
-
-        {/* Confirm Password */}
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <div className="relative">
-            <Input
-              id="confirmPassword"
-              type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirm your password"
-              value={formData.confirmPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, confirmPassword: e.target.value })
-              }
-              className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
-              disabled={isLoading}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              disabled={isLoading}
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-          {errors.confirmPassword && (
-            <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-          )}
-        </div>
-
-        {/* Accept terms */}
-        <div className="space-y-2">
-          <div className="flex items-start space-x-2">
-            <Checkbox
-              id="terms"
-              checked={formData.acceptTerms}
-              onCheckedChange={(checked: boolean) =>
-                setFormData({ ...formData, acceptTerms: checked })
-              }
-              disabled={isLoading}
-              className={errors.acceptTerms ? "border-destructive" : ""}
-            />
-            <Label
-              htmlFor="terms"
-              className="text-sm font-normal leading-none cursor-pointer"
-            >
-              I agree to the{" "}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </Label>
-          </div>
-          {errors.acceptTerms && (
-            <p className="text-sm text-destructive">{errors.acceptTerms}</p>
-          )}
-        </div>
-
-        {/* Submit button */}
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating account...
-            </>
-          ) : (
-            "Create account"
-          )}
-        </Button>
-
-        {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <Separator />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        {/* Social login buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button variant="outline" type="button" disabled={isLoading}>
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="currentColor"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              />
-            </svg>
-            Google
-          </Button>
-          <Button variant="outline" type="button" disabled={isLoading}>
-            <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
-            </svg>
-            GitHub
-          </Button>
-        </div>
-
-        {/* Sign in link */}
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/auth/signin" className="text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </form>
+          </form>
+        </Form>
+      </div>
     </AuthLayout>
   );
 }

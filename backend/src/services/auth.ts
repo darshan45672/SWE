@@ -2,12 +2,26 @@ import { User } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { hashPassword, comparePassword } from '../auth/password';
 import { generateToken } from '../auth/jwt';
+import { UpdateProfileData, ProfileResponse, DeleteAccountResponse } from '../types/profile';
 
 export interface RegisterData {
+  // Basic Information
   email: string;
   name: string;
   password: string;
   confirmPassword: string;
+  
+  // Extended Profile Information
+  avatar?: string;
+  bio?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  company?: string;
+  jobTitle?: string;
+  timezone?: string;
+  language?: string;
+  acceptTerms: boolean;
 }
 
 export interface LoginData {
@@ -25,7 +39,20 @@ export interface AuthResponse {
 export class AuthService {
   static async register(data: RegisterData): Promise<AuthResponse> {
     try {
-      const { email, name, password } = data;
+      const { 
+        email, 
+        name, 
+        password, 
+        avatar,
+        bio,
+        phone,
+        location,
+        website,
+        company,
+        jobTitle,
+        timezone,
+        language = "en"
+      } = data;
 
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
@@ -42,12 +69,22 @@ export class AuthService {
       // Hash password
       const hashedPassword = await hashPassword(password);
 
-      // Create user
+      // Create user with all profile data
       const user = await prisma.user.create({
         data: {
           email,
           name,
-          password: hashedPassword
+          password: hashedPassword,
+          avatar,
+          bio,
+          phone,
+          location,
+          website,
+          company,
+          jobTitle,
+          timezone,
+          language,
+          emailVerified: false // Context7 pattern: require email verification
         }
       });
 
@@ -59,6 +96,8 @@ export class AuthService {
 
       // Remove password from response
       const { password: _, ...userWithoutPassword } = user;
+
+      console.log('✅ User registered successfully with complete profile:', user.id);
 
       return {
         success: true,
@@ -156,9 +195,24 @@ export class AuthService {
 
   static async updateUserProfile(
     userId: string, 
-    updateData: Partial<any>
-  ): Promise<any | null> {
+    updateData: UpdateProfileData
+  ): Promise<ProfileResponse> {
     try {
+      console.log('🔄 Updating user profile:', { userId, updateData });
+
+      // Validate user exists
+      const existingUser = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!existingUser) {
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+
+      // Update user profile with Context7 pattern
       const user = await prisma.user.update({
         where: { id: userId },
         data: {
@@ -178,27 +232,71 @@ export class AuthService {
           language: true,
           company: true,
           jobTitle: true,
+          emailVerified: true,
           createdAt: true,
           updatedAt: true
         }
       });
 
-      return user;
+      console.log('✅ Profile updated successfully:', user.id);
+
+      return {
+        success: true,
+        message: 'Profile updated successfully',
+        user
+      };
     } catch (error) {
-      console.error('Update user profile error:', error);
-      return null;
+      console.error('❌ Update user profile error:', error);
+      return {
+        success: false,
+        message: 'Failed to update profile. Please try again.'
+      };
     }
   }
 
-  static async deleteUser(userId: string): Promise<boolean> {
+  static async deleteUser(userId: string, password: string): Promise<DeleteAccountResponse> {
     try {
+      console.log('🗑️ Attempting to delete user account:', userId);
+
+      // Get user with password for verification
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+
+      // Verify password before deletion (Context7 security pattern)
+      const isPasswordValid = await comparePassword(password, user.password);
+      if (!isPasswordValid) {
+        console.log('❌ Invalid password for account deletion');
+        return {
+          success: false,
+          message: 'Invalid password. Account deletion failed.'
+        };
+      }
+
+      // Delete user account
       await prisma.user.delete({
         where: { id: userId }
       });
-      return true;
+
+      console.log('✅ User account deleted successfully:', userId);
+
+      return {
+        success: true,
+        message: 'Account deleted successfully'
+      };
     } catch (error) {
-      console.error('Delete user error:', error);
-      return false;
+      console.error('❌ Delete user error:', error);
+      return {
+        success: false,
+        message: 'Failed to delete account. Please try again.'
+      };
     }
   }
 }

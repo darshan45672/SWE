@@ -1,6 +1,7 @@
 import { body, ValidationChain } from 'express-validator';
 
 export const registerValidation: ValidationChain[] = [
+  // Basic Information (Required)
   body('email')
     .isEmail()
     .normalizeEmail()
@@ -23,7 +24,61 @@ export const registerValidation: ValidationChain[] = [
         throw new Error('Password confirmation does not match password');
       }
       return true;
-    })
+    }),
+
+  body('acceptTerms')
+    .isBoolean()
+    .equals('true')
+    .withMessage('You must accept the terms and conditions'),
+
+  // Extended Profile Information (Optional)
+  body('bio')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Bio must be less than 500 characters'),
+
+  body('phone')
+    .optional()
+    .trim()
+    .matches(/^[\+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please provide a valid phone number'),
+
+  body('location')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Location must be less than 100 characters'),
+
+  body('website')
+    .optional()
+    .trim()
+    .isURL()
+    .withMessage('Please provide a valid website URL'),
+
+  body('company')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Company name must be less than 100 characters'),
+
+  body('jobTitle')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Job title must be less than 100 characters'),
+
+  body('timezone')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Invalid timezone'),
+
+  body('language')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 5 })
+    .withMessage('Invalid language code')
 ];
 
 export const loginValidation: ValidationChain[] = [
