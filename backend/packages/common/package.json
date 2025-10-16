@@ -1,0 +1,21 @@
+{
+  "name": "@projectmanager/common",
+  "version": "1.0.0",
+  "description": "Shared utilities and middleware for ProjectManager microservices",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.19.21",
+    "typescript": "^5.9.3"
+  }
+}

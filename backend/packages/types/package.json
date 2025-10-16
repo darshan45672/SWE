@@ -1,0 +1,16 @@
+{
+  "name": "@projectmanager/types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for ProjectManager microservices",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.21",
+    "typescript": "^5.9.3"
+  }
+}

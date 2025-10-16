@@ -1,0 +1,42 @@
+{
+  "name": "@projectmanager/root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ProjectManager Backend - Microservices Architecture with MongoDB and Prisma",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @projectmanager/api-gateway\" \"npm run dev -w @projectmanager/auth-service\" \"npm run dev -w @projectmanager/project-service\" \"npm run dev -w @projectmanager/issue-service\"",
+    "dev:gateway": "npm run dev -w @projectmanager/api-gateway",
+    "dev:auth": "npm run dev -w @projectmanager/auth-service",
+    "dev:project": "npm run dev -w @projectmanager/project-service",
+    "dev:issue": "npm run dev -w @projectmanager/issue-service",
+    "dev:user": "npm run dev -w @projectmanager/user-service",
+    "dev:notification": "npm run dev -w @projectmanager/notification-service",
+    "dev:scheduler": "npm run dev -w @projectmanager/scheduler-service",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "prisma:generate": "npm run generate -w @projectmanager/prisma-client",
+    "prisma:studio": "npm run studio -w @projectmanager/prisma-client",
+    "prisma:seed": "npm run db:seed -w @projectmanager/prisma-client",
+    "prisma:push": "npm run db:push -w @projectmanager/prisma-client",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "install:all": "npm install && npm install --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "concurrently": "^8.2.2",
+    "prettier": "^3.3.2",
+    "typescript": "^5.5.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

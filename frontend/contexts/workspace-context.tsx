@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Workspace, mockWorkspaces } from "@/types/workspace";
 import { Board, Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
 import { mockBoard, mockUsers } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/auth-context";
 
 interface Project {
   id: string;
@@ -100,6 +101,7 @@ const mockProjects: Project[] = [
 ];
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { user: authUser } = useAuth();
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(
     mockWorkspaces[0]
   );
@@ -110,8 +112,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>(mockWorkspaces);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
-  // Current user (in a real app, this would come from auth)
-  const currentUser = mockUsers[0];
+  // Current user - use real auth user if available, fallback to mock
+  const [currentUser, setCurrentUser] = useState<User>(mockUsers[0]);
+
+  // Update current user when auth user changes
+  useEffect(() => {
+    if (authUser) {
+      setCurrentUser({
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
+        avatar: authUser.name.slice(0, 2).toUpperCase(),
+      });
+    }
+  }, [authUser]);
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;

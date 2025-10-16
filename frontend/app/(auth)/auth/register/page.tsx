@@ -10,11 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isValidEmail, validatePassword } from "@/lib/auth-utils";
+import { useAuth } from "@/contexts/auth-context";
 import type { RegisterFormData } from "@/types/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [formData, setFormData] = useState<RegisterFormData>({
     name: "",
     email: "",
@@ -25,6 +28,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof RegisterFormData, string>>>({});
+  const [apiError, setApiError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const passwordValidation = validatePassword(formData.password);
@@ -70,12 +74,22 @@ export default function RegisterPage() {
     if (!validate()) return;
 
     setIsLoading(true);
+    setApiError("");
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Call real authentication API
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      // On success, useAuth will redirect to home page automatically
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Registration failed";
+      setApiError(errorMessage);
+    } finally {
       setIsLoading(false);
-      router.push("/auth/verify-email");
-    }, 1500);
+    }
   };
 
   return (
@@ -84,6 +98,13 @@ export default function RegisterPage() {
       description="Enter your information to get started"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* API Error Alert */}
+        {apiError && (
+          <Alert variant="destructive">
+            <AlertDescription>{apiError}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Name */}
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
