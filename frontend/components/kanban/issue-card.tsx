@@ -7,7 +7,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { Calendar, MessageSquare, Eye, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -198,13 +197,10 @@ export function IssueCard({ issue }: IssueCardProps) {
             )}
           </div>
 
-          {issue.assignee && (
-            <Avatar className="h-6 w-6 cursor-pointer">
-              <AvatarFallback className="text-xs">
-                {issue.assignee.avatar || issue.assignee.name.slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-          )}
+          {/* Show created date instead of assignee */}
+          <div className="text-xs text-muted-foreground">
+            {formatDate(issue.createdAt)}
+          </div>
         </div>
       </CardContent>
     </Card>

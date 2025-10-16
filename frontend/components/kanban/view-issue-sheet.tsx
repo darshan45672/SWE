@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calendar, Clock, Tag, User } from "lucide-react";
+import { Calendar, Clock, Tag } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -87,50 +87,6 @@ export function ViewIssueDialog({
         <div className="space-y-6 mt-6">
           {/* Metadata */}
           <div className="space-y-4">
-            {/* Assignee */}
-            {issue.assignee && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[100px]">
-                  <User className="h-4 w-4" />
-                  <span>Assignee</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-xs">
-                      {issue.assignee.avatar || issue.assignee.name.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{issue.assignee.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {issue.assignee.email}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Reporter */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[100px]">
-                <User className="h-4 w-4" />
-                <span>Reporter</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="text-xs">
-                    {issue.reporter.avatar || issue.reporter.name.slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{issue.reporter.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {issue.reporter.email}
-                  </p>
-                </div>
-              </div>
-            </div>
-
             {/* Due Date */}
             {issue.dueDate && (
               <div className="flex items-center gap-3">

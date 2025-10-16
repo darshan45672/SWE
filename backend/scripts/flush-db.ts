@@ -42,15 +42,7 @@ async function flushDatabase() {
     const issues = await prisma.issue.deleteMany({});
     console.log(`   ✓ Deleted ${issues.count} issues`);
     
-    console.log('📊 Deleting columns...');
-    const columns = await prisma.column.deleteMany({});
-    console.log(`   ✓ Deleted ${columns.count} columns`);
-    
-    console.log('📋 Deleting boards...');
-    const boards = await prisma.board.deleteMany({});
-    console.log(`   ✓ Deleted ${boards.count} boards`);
-    
-    console.log('📁 Deleting projects...');
+    console.log(' Deleting projects...');
     const projects = await prisma.project.deleteMany({});
     console.log(`   ✓ Deleted ${projects.count} projects`);
     
@@ -73,8 +65,6 @@ async function flushDatabase() {
     console.log(`   🏢 Workspaces:               ${workspaces.count}`);
     console.log(`   👥 Workspace Members:        ${workspaceMembers.count}`);
     console.log(`   📁 Projects:                 ${projects.count}`);
-    console.log(`   📋 Boards:                   ${boards.count}`);
-    console.log(`   📊 Columns:                  ${columns.count}`);
     console.log(`   📋 Issues:                   ${issues.count}`);
     console.log(`   🏷️  Tags:                     ${tags.count}`);
     console.log(`   🏷️  Issue Tags:               ${issueTags.count}`);
@@ -85,7 +75,7 @@ async function flushDatabase() {
     console.log(`   💬 Messages:                 ${messages.count}`);
     console.log('═══════════════════════════════════════');
     const total = users.count + workspaces.count + workspaceMembers.count + 
-                  projects.count + boards.count + columns.count + issues.count + 
+                  projects.count + issues.count + 
                   tags.count + issueTags.count + comments.count + notifications.count + 
                   chatRooms.count + chatRoomParticipants.count + messages.count;
     console.log(`   🗑️  Total Records Deleted:   ${total}`);

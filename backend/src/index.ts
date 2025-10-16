@@ -5,6 +5,7 @@ import prisma from './lib/prisma'
 import authRoutes from './auth/routes'
 import workspaceRoutes from './routes/workspace'
 import projectRoutes from './routes/project'
+import issueRoutes from './routes/issue'
 
 // Load environment variables
 dotenv.config()
@@ -37,6 +38,9 @@ app.use('/api/v1/workspaces', workspaceRoutes)
 
 // Project routes - Context7 pattern with authentication
 app.use('/api/v1/projects', projectRoutes)
+
+// Issue routes - Context7 pattern with authentication (Simplified - no boards)
+app.use('/api/v1/issues', issueRoutes)
 
 // API routes
 app.get('/api/v1', (req, res) => {

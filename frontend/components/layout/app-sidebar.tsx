@@ -7,11 +7,11 @@ import {
   Circle,
   FolderKanban,
   Inbox,
-  ListTodo,
   ChevronRight,
   Clock,
   UserCircle,
   Settings,
+  Loader,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,6 +37,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
 import { ProjectSwitcher } from "@/components/workspace/project-switcher";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { useAuth } from "@/contexts/auth-context";
 import { Issue } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -56,25 +57,29 @@ const typeColors = {
 
 export function AppSidebar() {
   const router = useRouter();
-  const { currentProject, currentUser } = useWorkspace();
+  const { currentProject, issues } = useWorkspace();
+  const { user } = useAuth();
 
-  // Get all issues from current project
-  const allIssues = useMemo(() => {
-    if (!currentProject?.board) return [];
-    return currentProject.board.columns.flatMap((col) => col.issues);
-  }, [currentProject]);
-
-  // Filter issues by category
+  // Filter issues by category using actual issues from context
   const issueCategories = useMemo(() => {
+    if (!issues) {
+      return {
+        allIssues: [],
+        activeIssues: [],
+        inProgressIssues: [],
+        closedIssues: [],
+      };
+    }
+
     return {
-      allIssues: allIssues,
-      activeIssues: allIssues.filter(
+      allIssues: issues,
+      activeIssues: issues.filter(
         (issue) => issue.status === "todo" || issue.status === "in-progress"
       ),
-      closedIssues: allIssues.filter((issue) => issue.status === "done"),
-      myIssues: allIssues.filter((issue) => issue.reporter.id === currentUser.id),
+      inProgressIssues: issues.filter((issue) => issue.status === "in-progress"),
+      closedIssues: issues.filter((issue) => issue.status === "done"),
     };
-  }, [allIssues, currentUser.id]);
+  }, [issues]);
 
   const handleIssueClick = (issueId: string) => {
     router.push(`/issues/${issueId}`);
@@ -111,19 +116,9 @@ export function AppSidebar() {
           <span className={cn("text-[10px] font-medium", typeColors[issue.type])}>
             {issue.type}
           </span>
-          <span className="text-[10px] text-muted-foreground">#{issue.id}</span>
+          <span className="text-[10px] text-muted-foreground">#{issue.id.slice(-6)}</span>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          {issue.assignee && (
-            <div className="flex items-center gap-1">
-              <Avatar className="h-3 w-3">
-                <AvatarFallback className="text-[8px]">
-                  {issue.assignee.avatar || issue.assignee.name.slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="truncate max-w-[80px]">{issue.assignee.name}</span>
-            </div>
-          )}
           <div className="flex items-center gap-0.5">
             <Clock className="h-2.5 w-2.5" />
             <span>{formatDate(issue.updatedAt)}</span>
@@ -259,6 +254,33 @@ export function AppSidebar() {
                   </AccordionContent>
                 </AccordionItem>
 
+                {/* In Progress Issues */}
+                <AccordionItem value="in-progress-issues" className="border-none">
+                  <AccordionTrigger className="px-2 py-2 hover:bg-accent rounded-md hover:no-underline">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Loader className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 text-left text-sm font-medium">In Progress</span>
+                      <Badge
+                        variant="secondary"
+                        className="h-5 w-fit px-1.5 text-xs font-medium"
+                      >
+                        {issueCategories.inProgressIssues.length}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-0 pb-2 pt-1">
+                    <div className="space-y-0.5">
+                      {issueCategories.inProgressIssues.length > 0 ? (
+                        issueCategories.inProgressIssues.map(renderIssueItem)
+                      ) : (
+                        <p className="text-xs text-muted-foreground px-4 py-2 text-center">
+                          No issues in progress
+                        </p>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 {/* Closed Issues */}
                 <AccordionItem value="closed-issues" className="border-none">
                   <AccordionTrigger className="px-2 py-2 hover:bg-accent rounded-md hover:no-underline">
@@ -280,33 +302,6 @@ export function AppSidebar() {
                       ) : (
                         <p className="text-xs text-muted-foreground px-4 py-2 text-center">
                           No closed issues
-                        </p>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* My Issues */}
-                <AccordionItem value="my-issues" className="border-none">
-                  <AccordionTrigger className="px-2 py-2 hover:bg-accent rounded-md hover:no-underline">
-                    <div className="flex items-center gap-2 flex-1">
-                      <ListTodo className="h-4 w-4 shrink-0" />
-                      <span className="flex-1 text-left text-sm font-medium">My Issues</span>
-                      <Badge
-                        variant="secondary"
-                        className="h-5 w-fit px-1.5 text-xs font-medium"
-                      >
-                        {issueCategories.myIssues.length}
-                      </Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-0 pb-2 pt-1">
-                    <div className="space-y-0.5">
-                      {issueCategories.myIssues.length > 0 ? (
-                        issueCategories.myIssues.map(renderIssueItem)
-                      ) : (
-                        <p className="text-xs text-muted-foreground px-4 py-2 text-center">
-                          No issues created by you
                         </p>
                       )}
                     </div>
@@ -351,12 +346,12 @@ export function AppSidebar() {
           <div className="flex items-center gap-2 pt-2 border-t">
             <Avatar className="h-6 w-6">
               <AvatarFallback className="text-xs">
-                {currentUser.avatar || currentUser.name.slice(0, 2)}
+                {user?.name?.slice(0, 2).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{currentUser.name}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{currentUser.email}</p>
+              <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
           </div>
         </div>

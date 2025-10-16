@@ -26,8 +26,6 @@ export interface Issue {
   status: IssueStatus;
   priority: Priority;
   type: IssueType;
-  assignee?: User;
-  reporter: User;
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date;

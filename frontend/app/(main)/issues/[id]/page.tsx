@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { ArrowLeft, Calendar, User, Tag, MessageSquare, Clock } from "lucide-react";
+import { ArrowLeft, Calendar, Tag, MessageSquare, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -33,14 +33,12 @@ const statusLabels = {
 export default function IssueDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { currentProject } = useWorkspace();
+  const { issues } = useWorkspace();
 
   const issueId = params.id as string;
 
-  // Find the issue from the current project
-  const issue = currentProject?.board.columns
-    .flatMap((col) => col.issues)
-    .find((issue) => issue.id === issueId);
+  // Find the issue from the issues array
+  const issue = issues?.find((issue) => issue.id === issueId);
 
   if (!issue) {
     return (
@@ -176,46 +174,6 @@ export default function IssueDetailsPage() {
                 <CardTitle className="text-sm font-medium">Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Assignee */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <User className="h-4 w-4" />
-                    <span>Assignee</span>
-                  </div>
-                  {issue.assignee ? (
-                    <div className="flex items-center gap-2 ml-6">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">
-                          {issue.assignee.avatar || issue.assignee.name.slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{issue.assignee.name}</span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground ml-6">Unassigned</p>
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* Reporter */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <User className="h-4 w-4" />
-                    <span>Reporter</span>
-                  </div>
-                  <div className="flex items-center gap-2 ml-6">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">
-                        {issue.reporter.avatar || issue.reporter.name.slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">{issue.reporter.name}</span>
-                  </div>
-                </div>
-
-                <Separator />
-
                 {/* Due Date */}
                 {issue.dueDate && (
                   <>

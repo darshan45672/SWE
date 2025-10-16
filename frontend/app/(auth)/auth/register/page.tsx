@@ -99,8 +99,8 @@ export default function RegisterPage() {
       const result = await register(data);
 
       if (result.success) {
-        console.log("✅ Registration successful, redirecting to profile");
-        router.push("/profile");
+        console.log("✅ Registration successful, redirecting to home");
+        router.push("/");
       } else {
         setApiError(result.message || "Registration failed. Please try again.");
       }

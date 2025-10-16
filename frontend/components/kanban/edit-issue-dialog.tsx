@@ -52,7 +52,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { Issue } from "@/types";
-import { mockUsers } from "@/lib/mock-data";
 
 const issueFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(100),
@@ -60,7 +59,6 @@ const issueFormSchema = z.object({
   type: z.enum(["bug", "feature", "task", "improvement"] as const),
   priority: z.enum(["low", "medium", "high", "urgent"] as const),
   status: z.enum(["todo", "in-progress", "done"] as const),
-  assigneeId: z.string().optional(),
   dueDate: z.date().optional(),
   tags: z.array(z.string()),
 });
@@ -78,9 +76,9 @@ export function EditIssueDialog({
   open,
   onOpenChange,
 }: EditIssueDialogProps) {
-  const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [currentTag, setCurrentTag] = useState("");
-  const { updateIssue } = useWorkspace();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { updateIssueApi } = useWorkspace();
 
   const form = useForm<IssueFormValues>({
     resolver: zodResolver(issueFormSchema),
@@ -90,7 +88,6 @@ export function EditIssueDialog({
       type: "task",
       priority: "medium",
       status: "todo",
-      assigneeId: undefined,
       dueDate: undefined,
       tags: [],
     },
@@ -105,28 +102,35 @@ export function EditIssueDialog({
         type: issue.type,
         priority: issue.priority,
         status: issue.status,
-        assigneeId: issue.assignee?.id,
         dueDate: issue.dueDate,
         tags: issue.tags,
       });
     }
   }, [issue, open, form]);
 
-  const onSubmit = (data: IssueFormValues) => {
+  const onSubmit = async (data: IssueFormValues) => {
     if (!issue) return;
 
-    updateIssue(issue.id, {
+    setIsSubmitting(true);
+
+    const result = await updateIssueApi(issue.id, {
       title: data.title,
       description: data.description,
       type: data.type,
       priority: data.priority,
       status: data.status,
-      assigneeId: data.assigneeId,
       dueDate: data.dueDate,
       tags: data.tags,
     });
 
-    onOpenChange(false);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      onOpenChange(false);
+    } else {
+      console.error('Failed to update issue:', result.message);
+      // TODO: Show error toast/notification
+    }
   };
 
   const handleAddTag = () => {
@@ -325,74 +329,6 @@ export function EditIssueDialog({
               />
             </div>
 
-            {/* Assignee */}
-            <FormField
-              control={form.control}
-              name="assigneeId"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Assignee</FormLabel>
-                  <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={assigneeOpen}
-                          className="justify-between"
-                        >
-                          {field.value
-                            ? mockUsers.find((user) => user.id === field.value)
-                                ?.name
-                            : "Select assignee..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search users..." />
-                        <CommandList>
-                          <CommandEmpty>No user found.</CommandEmpty>
-                          <CommandGroup>
-                            {mockUsers.map((user) => (
-                              <CommandItem
-                                key={user.id}
-                                value={user.name}
-                                onSelect={() => {
-                                  form.setValue("assigneeId", user.id);
-                                  setAssigneeOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    field.value === user.id
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                <div className="flex items-center gap-2">
-                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                                    {user.avatar}
-                                  </div>
-                                  <span>{user.name}</span>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormDescription>
-                    Assign this issue to a team member
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             {/* Tags */}
             <FormField
               control={form.control}
@@ -456,10 +392,13 @@ export function EditIssueDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

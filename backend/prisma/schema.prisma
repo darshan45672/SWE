@@ -31,8 +31,6 @@ model User {
 
   // Relations - MongoDB style with ObjectId references
   workspaces          WorkspaceMember[]
-  assignedIssues      Issue[]           @relation("AssignedIssues")
-  reportedIssues      Issue[]           @relation("ReportedIssues")
   comments            Comment[]
   messages            Message[]
   sentNotifications   Notification[]    @relation("NotificationActor")
@@ -74,7 +72,7 @@ model WorkspaceMember {
   @@map("workspace_members")
 }
 
-// Project model
+// Project model (Simplified - no boards)
 model Project {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
@@ -85,65 +83,26 @@ model Project {
 
   // Relations
   workspace Workspace @relation(fields: [workspaceId], references: [id])
-  boards    Board[]
   issues    Issue[]
 
   @@map("projects")
 }
 
-// Board model (Kanban boards)
-model Board {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  projectId String   @db.ObjectId
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  project Project  @relation(fields: [projectId], references: [id])
-  columns Column[]
-
-  @@map("boards")
-}
-
-// Column model (for Kanban columns)
-model Column {
-  id        String      @id @default(auto()) @map("_id") @db.ObjectId
-  title     String
-  status    IssueStatus
-  boardId   String      @db.ObjectId
-  position  Int         @default(0)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  // Relations
-  board  Board   @relation(fields: [boardId], references: [id])
-  issues Issue[]
-
-  @@map("columns")
-}
-
-// Issue model
+// Issue model (Simplified - status determines column: TODO, IN_PROGRESS, DONE)
 model Issue {
   id          String      @id @default(auto()) @map("_id") @db.ObjectId
   title       String
-  description String
+  description String      @default("")
   status      IssueStatus @default(TODO)
   priority    Priority    @default(MEDIUM)
   type        IssueType   @default(TASK)
-  assigneeId  String?     @db.ObjectId
-  reporterId  String      @db.ObjectId
   projectId   String      @db.ObjectId
-  columnId    String?     @db.ObjectId
   dueDate     DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   // Relations
-  assignee      User?         @relation("AssignedIssues", fields: [assigneeId], references: [id])
-  reporter      User          @relation("ReportedIssues", fields: [reporterId], references: [id])
   project       Project       @relation(fields: [projectId], references: [id])
-  column        Column?       @relation(fields: [columnId], references: [id])
   comments      Comment[]
   tags          IssueTag[]
   notifications Notification[]

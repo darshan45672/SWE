@@ -2,17 +2,17 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Workspace, mockWorkspaces } from "@/types/workspace";
-import { Board, Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
-import { mockBoard, mockUsers } from "@/lib/mock-data";
+import { Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
+import { mockUsers } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/auth-context";
 
+// Simplified Project interface - no board model needed
 interface Project {
   id: string;
   name: string;
   key?: string;
   description?: string;
   workspaceId: string;
-  board: Board;
 }
 
 interface CreateIssueData {
@@ -21,7 +21,6 @@ interface CreateIssueData {
   type: IssueType;
   priority: Priority;
   status: IssueStatus;
-  assigneeId?: string;
   dueDate?: Date;
   tags: string[];
 }
@@ -32,20 +31,22 @@ interface WorkspaceContextType {
   currentUser: User;
   workspaces: Workspace[];
   projects: Project[];
+  issues: Issue[];
   notifications: Notification[];
   unreadCount: number;
   loading: boolean;
   switchWorkspace: (workspaceId: string) => void;
   switchProject: (projectId: string) => void;
-  addProject: (project: Omit<Project, "board">) => void;
+  addProject: (project: Project) => void;
   addWorkspace: (workspace: Workspace) => void;
   createWorkspace: (workspaceData: { name: string; description?: string; icon?: string; color?: string }) => Promise<{ success: boolean; message?: string; data?: Workspace }>;
   createProject: (projectData: { name: string; description?: string }) => Promise<{ success: boolean; message?: string; data?: any }>;
   fetchWorkspaces: () => Promise<void>;
   fetchProjects: (workspaceId: string) => Promise<void>;
-  addIssue: (issueData: CreateIssueData) => void;
-  updateIssue: (issueId: string, issueData: Partial<CreateIssueData>) => void;
-  deleteIssue: (issueId: string) => void;
+  fetchIssues: (projectId: string) => Promise<void>;
+  createIssue: (issueData: CreateIssueData) => Promise<{ success: boolean; message?: string; data?: Issue }>;
+  updateIssueApi: (issueId: string, issueData: Partial<CreateIssueData>) => Promise<{ success: boolean; message?: string; data?: Issue }>;
+  deleteIssueApi: (issueId: string) => Promise<{ success: boolean; message?: string }>;
   markNotificationAsRead: (notificationId: string) => void;
   markAllNotificationsAsRead: () => void;
   clearNotification: (notificationId: string) => void;
@@ -55,67 +56,60 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
   undefined
 );
 
-// Mock projects data - in a real app, this would come from an API
-const mockProjects: Project[] = [
-  {
-    id: "project-1",
-    name: "Main Project",
-    workspaceId: "workspace-1",
-    board: mockBoard,
-  },
-  {
-    id: "project-2",
-    name: "Mobile App",
-    workspaceId: "workspace-1",
-    board: {
-      ...mockBoard,
-      id: "board-2",
-      name: "Mobile App Board",
-    },
-  },
-  {
-    id: "project-3",
-    name: "Personal Tasks",
-    workspaceId: "workspace-2",
-    board: {
-      ...mockBoard,
-      id: "board-3",
-      name: "Personal Board",
-    },
-  },
-  {
-    id: "project-4",
-    name: "Team Sprint",
-    workspaceId: "workspace-3",
-    board: {
-      ...mockBoard,
-      id: "board-4",
-      name: "Team Alpha Board",
-    },
-  },
-  {
-    id: "project-5",
-    name: "Campaign Planning",
-    workspaceId: "workspace-4",
-    board: {
-      ...mockBoard,
-      id: "board-5",
-      name: "Marketing Board",
-    },
-  },
-];
+// Status conversion helpers - Frontend uses lowercase, Backend uses uppercase
+const toBackendStatus = (status: IssueStatus): string => {
+  const map: Record<IssueStatus, string> = {
+    'todo': 'TODO',
+    'in-progress': 'IN_PROGRESS',
+    'done': 'DONE',
+  };
+  return map[status];
+};
+
+const toFrontendStatus = (status: string): IssueStatus => {
+  const map: Record<string, IssueStatus> = {
+    'TODO': 'todo',
+    'IN_PROGRESS': 'in-progress',
+    'DONE': 'done',
+  };
+  return map[status] || 'todo';
+};
+
+// Priority conversion helpers - Frontend uses lowercase, Backend uses uppercase
+const toBackendPriority = (priority: Priority): string => {
+  return priority.toUpperCase();
+};
+
+const toFrontendPriority = (priority: string): Priority => {
+  return priority.toLowerCase() as Priority;
+};
+
+// Type conversion helpers - Frontend uses lowercase, Backend uses uppercase
+const toBackendType = (type: IssueType): string => {
+  return type.toUpperCase();
+};
+
+const toFrontendType = (type: string): IssueType => {
+  return type.toLowerCase() as IssueType;
+};
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { token, user: authUser } = useAuth();
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [allProjects, setAllProjects] = useState<Project[]>(mockProjects);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Current user (in a real app, this would come from auth)
-  const currentUser = mockUsers[0];
+  // Current user - use authenticated user or fallback to mock - Context7 pattern
+  const currentUser = authUser ? {
+    id: authUser.id,
+    name: authUser.name,
+    email: authUser.email,
+    avatar: authUser.avatar || authUser.name.slice(0, 2).toUpperCase(),
+  } : mockUsers[0];
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -264,24 +258,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       console.log('Fetched projects:', data);
       
       if (data.success && data.data) {
-        // Map API projects to local Project type with mock boards
-        const projectsWithBoards = data.data.map((project: any) => ({
+        // Map API projects to local Project type (no boards)
+        const projects = data.data.map((project: any) => ({
           id: project.id,
           name: project.name,
+          key: project.key,
           description: project.description || '',
           workspaceId: project.workspaceId,
-          board: {
-            ...mockBoard,
-            id: `board-${project.id}`,
-            name: `${project.name} Board`,
-          },
         }));
         
-        setAllProjects(projectsWithBoards);
+        setAllProjects(projects);
         
         // Set first project as current if none selected
-        if (!currentProject && projectsWithBoards.length > 0) {
-          setCurrentProject(projectsWithBoards[0]);
+        if (!currentProject && projects.length > 0) {
+          setCurrentProject(projects[0]);
         }
       }
     } catch (error) {
@@ -346,21 +336,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.success && data.data) {
-        // Add to local state with mock board
-        const projectWithBoard: Project = {
+        // Add to local state (no board)
+        const project: Project = {
           id: data.data.id,
           name: data.data.name,
+          key: data.data.key,
           description: data.data.description || '',
           workspaceId: data.data.workspaceId,
-          board: {
-            ...mockBoard,
-            id: `board-${data.data.id}`,
-            name: `${data.data.name} Board`,
-          },
         };
         
-        setAllProjects(prev => [...prev, projectWithBoard]);
-        setCurrentProject(projectWithBoard);
+        setAllProjects(prev => [...prev, project]);
+        setCurrentProject(project);
         
         return {
           success: true,
@@ -390,6 +376,62 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       fetchProjects(currentWorkspace.id);
     }
   }, [currentWorkspace?.id, token]);
+
+  // Fetch issues when current project changes
+  useEffect(() => {
+    if (currentProject && token) {
+      fetchIssues(currentProject.id);
+    }
+  }, [currentProject?.id, token]);
+
+  // Fetch issues for a project - Context7 pattern (Simplified - no boards)
+  const fetchIssues = async (projectId: string) => {
+    if (!token) {
+      console.log('No token available, skipping issues fetch');
+      return;
+    }
+
+    try {
+      console.log('Fetching issues for project:', projectId);
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/project/${projectId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch issues response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch issues failed:', response.status, errorText);
+        throw new Error(`Failed to fetch issues: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched issues:', data);
+      
+      if (data.success && data.data) {
+        // Map issues (no assignee/reporter fields)
+        const mappedIssues = data.data.map((issue: any) => ({
+          ...issue,
+          status: toFrontendStatus(issue.status), // Convert uppercase to lowercase
+          priority: toFrontendPriority(issue.priority), // Convert uppercase to lowercase
+          type: toFrontendType(issue.type), // Convert uppercase to lowercase
+          createdAt: new Date(issue.createdAt),
+          updatedAt: new Date(issue.updatedAt),
+          dueDate: issue.dueDate ? new Date(issue.dueDate) : undefined,
+          tags: issue.tags ? issue.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
+          comments: [],
+        }));
+        
+        setIssues(mappedIssues);
+      }
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+    }
+  };
 
   // Helper function to create notification
   const createNotification = (
@@ -443,17 +485,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addProject = (newProject: Omit<Project, "board">) => {
-    const projectWithBoard: Project = {
-      ...newProject,
-      board: {
-        ...mockBoard,
-        id: `board-${Date.now()}`,
-        name: `${newProject.name} Board`,
-      },
-    };
-    setAllProjects([...allProjects, projectWithBoard]);
-    setCurrentProject(projectWithBoard);
+  const addProject = (newProject: Project) => {
+    setAllProjects([...allProjects, newProject]);
+    setCurrentProject(newProject);
   };
 
   const addWorkspace = (newWorkspace: Workspace) => {
@@ -462,191 +496,244 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentProject(null); // No projects in new workspace yet
   };
 
-  const addIssue = (issueData: CreateIssueData) => {
-    if (!currentProject) return;
-
-    // Find the assignee user object
-    const assignee = issueData.assigneeId
-      ? mockUsers.find((u) => u.id === issueData.assigneeId)
-      : undefined;
-
-    // Create the new issue
-    const newIssue: Issue = {
-      id: `issue-${Date.now()}`,
-      title: issueData.title,
-      description: issueData.description,
-      status: issueData.status,
-      priority: issueData.priority,
-      type: issueData.type,
-      assignee,
-      reporter: currentUser,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      dueDate: issueData.dueDate,
-      tags: issueData.tags,
-      comments: [],
-    };
-
-    // Update the current project's board
-    const updatedBoard: Board = {
-      ...currentProject.board,
-      columns: currentProject.board.columns.map((column) => {
-        if (column.id === issueData.status) {
-          return {
-            ...column,
-            issues: [...column.issues, newIssue],
-          };
-        }
-        return column;
-      }),
-    };
-
-    // Update the project with the new board
-    const updatedProject: Project = {
-      ...currentProject,
-      board: updatedBoard,
-    };
-
-    // Update the projects list
-    setAllProjects(
-      allProjects.map((p) =>
-        p.id === currentProject.id ? updatedProject : p
-      )
-    );
-
-    // Update the current project
-    setCurrentProject(updatedProject);
-
-    // Create notification if issue is assigned to someone
-    if (assignee && assignee.id !== currentUser.id) {
-      createNotification(
-        "issue_assigned",
-        "New Issue Assigned",
-        `${currentUser.name} assigned you to "${newIssue.title}"`,
-        newIssue,
-        currentUser,
-        assignee
-      );
+  // Create issue - Context7 pattern (Simplified - no boards)
+  const createIssue = async (issueData: CreateIssueData): Promise<{ success: boolean; message?: string; data?: Issue }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
     }
-  };
 
-  const updateIssue = (issueId: string, issueData: Partial<CreateIssueData>) => {
-    if (!currentProject) return;
+    if (!currentProject) {
+      return { success: false, message: 'No project selected' };
+    }
 
-    // Find the assignee user object if assigneeId is provided
-    const assignee = issueData.assigneeId
-      ? mockUsers.find((u) => u.id === issueData.assigneeId)
-      : undefined;
-
-    // Update the current project's board
-    const updatedBoard: Board = {
-      ...currentProject.board,
-      columns: currentProject.board.columns.map((column) => {
-        // Remove issue from old column if status changed
-        const issuesWithoutTarget = column.issues.filter(
-          (issue) => issue.id !== issueId
-        );
-
-        // Find the issue to update
-        const issueToUpdate = currentProject.board.columns
-          .flatMap((col) => col.issues)
-          .find((issue) => issue.id === issueId);
-
-        if (!issueToUpdate) return column;
-
-        // Create updated issue
-        const updatedIssue: Issue = {
-          ...issueToUpdate,
-          ...(issueData.title && { title: issueData.title }),
-          ...(issueData.description && { description: issueData.description }),
-          ...(issueData.type && { type: issueData.type }),
-          ...(issueData.priority && { priority: issueData.priority }),
-          ...(issueData.status && { status: issueData.status }),
-          ...(issueData.assigneeId !== undefined && { assignee }),
-          ...(issueData.dueDate !== undefined && { dueDate: issueData.dueDate }),
-          ...(issueData.tags && { tags: issueData.tags }),
-          updatedAt: new Date(),
-        };
-
-        // Add issue to new column if status matches
-        const targetStatus = issueData.status || issueToUpdate.status;
-        if (column.id === targetStatus) {
-          return {
-            ...column,
-            issues: [...issuesWithoutTarget, updatedIssue],
-          };
-        }
-
-        // Return column without the issue if it moved to another column
-        return {
-          ...column,
-          issues: issuesWithoutTarget,
-        };
-      }),
-    };
-
-    // Update the project with the new board
-    const updatedProject: Project = {
-      ...currentProject,
-      board: updatedBoard,
-    };
-
-    // Update the projects list
-    setAllProjects(
-      allProjects.map((p) =>
-        p.id === currentProject.id ? updatedProject : p
-      )
-    );
-
-    // Update the current project
-    setCurrentProject(updatedProject);
-
-    // Create notification if assignee changed and it's not the current user
-    if (issueData.assigneeId && assignee && assignee.id !== currentUser.id) {
-      const issueToUpdate = currentProject.board.columns
-        .flatMap((col) => col.issues)
-        .find((issue) => issue.id === issueId);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues`;
       
-      if (issueToUpdate && issueToUpdate.assignee?.id !== assignee.id) {
-        createNotification(
-          "issue_assigned",
-          "Issue Assigned to You",
-          `${currentUser.name} assigned you to "${issueToUpdate.title}"`,
-          issueToUpdate,
-          currentUser,
-          assignee
-        );
+      const requestBody = {
+        title: issueData.title,
+        description: issueData.description || '',
+        type: toBackendType(issueData.type), // Convert to uppercase
+        priority: toBackendPriority(issueData.priority), // Convert to uppercase
+        status: toBackendStatus(issueData.status), // Convert to uppercase
+        projectId: currentProject.id,
+        dueDate: issueData.dueDate,
+        tags: issueData.tags,
+      };
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      let data;
+      try {
+        const responseText = await response.text();
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
       }
+
+      if (!response.ok) {
+        console.error('Failed to create issue:', data.message || data.errors?.[0]?.msg);
+        return {
+          success: false,
+          message: data.message || data.errors?.[0]?.msg || 'Failed to create issue',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Map issue (no assignee/reporter fields)
+        const newIssue: Issue = {
+          ...data.data,
+          status: toFrontendStatus(data.data.status), // Convert backend to frontend status
+          priority: toFrontendPriority(data.data.priority), // Convert backend to frontend priority
+          type: toFrontendType(data.data.type), // Convert backend to frontend type
+          createdAt: new Date(data.data.createdAt),
+          updatedAt: new Date(data.data.updatedAt),
+          dueDate: data.data.dueDate ? new Date(data.data.dueDate) : undefined,
+          tags: data.data.tags ? data.data.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
+          comments: [],
+        };
+
+        // Add to local state
+        setIssues(prev => [...prev, newIssue]);
+        
+        return {
+          success: true,
+          message: data.message,
+          data: newIssue,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error creating issue:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create issue',
+      };
     }
   };
 
-  const deleteIssue = (issueId: string) => {
-    if (!currentProject) return;
+  // Update issue - Context7 pattern (Simplified - no boards)
+  const updateIssueApi = async (issueId: string, issueData: Partial<CreateIssueData>): Promise<{ success: boolean; message?: string; data?: Issue }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
 
-    // Update the current project's board by removing the issue
-    const updatedBoard: Board = {
-      ...currentProject.board,
-      columns: currentProject.board.columns.map((column) => ({
-        ...column,
-        issues: column.issues.filter((issue) => issue.id !== issueId),
-      })),
-    };
+    console.log('Updating issue:', issueId, 'with data:', issueData);
 
-    // Update the project with the new board
-    const updatedProject: Project = {
-      ...currentProject,
-      board: updatedBoard,
-    };
+    try {
+      const updateData: any = {
+        ...(issueData.title && { title: issueData.title }),
+        ...(issueData.description !== undefined && { description: issueData.description }),
+        ...(issueData.type && { type: toBackendType(issueData.type) }), // Convert to uppercase
+        ...(issueData.priority && { priority: toBackendPriority(issueData.priority) }), // Convert to uppercase
+        ...(issueData.status && { status: toBackendStatus(issueData.status) }), // Convert to uppercase
+        ...(issueData.dueDate !== undefined && { dueDate: issueData.dueDate }),
+        ...(issueData.tags && { tags: issueData.tags }),
+      };
 
-    // Update the projects list
-    setAllProjects(
-      allProjects.map((p) =>
-        p.id === currentProject.id ? updatedProject : p
-      )
-    );
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/${issueId}`;
+      console.log('Sending PUT request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
 
-    // Update the current project
-    setCurrentProject(updatedProject);
+      console.log('Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to update issue',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Map issue (no assignee/reporter fields)
+        const updatedIssue: Issue = {
+          ...data.data,
+          status: toFrontendStatus(data.data.status), // Convert backend to frontend status
+          priority: toFrontendPriority(data.data.priority), // Convert backend to frontend priority
+          type: toFrontendType(data.data.type), // Convert backend to frontend type
+          createdAt: new Date(data.data.createdAt),
+          updatedAt: new Date(data.data.updatedAt),
+          dueDate: data.data.dueDate ? new Date(data.data.dueDate) : undefined,
+          tags: data.data.tags ? data.data.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
+          comments: [],
+        };
+
+        // Update local state
+        setIssues(prev => prev.map(issue => 
+          issue.id === issueId ? updatedIssue : issue
+        ));
+        
+        return {
+          success: true,
+          message: data.message,
+          data: updatedIssue,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error updating issue:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to update issue',
+      };
+    }
+  };
+
+  // Delete issue - Context7 pattern (Simplified - no boards)
+  const deleteIssueApi = async (issueId: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    console.log('Deleting issue:', issueId);
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/${issueId}`;
+      console.log('Sending DELETE request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to delete issue',
+        };
+      }
+
+      if (data.success) {
+        // Remove from local state
+        setIssues(prev => prev.filter(issue => issue.id !== issueId));
+        
+        return {
+          success: true,
+          message: data.message,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error deleting issue:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to delete issue',
+      };
+    }
   };
 
   // Get projects for current workspace
@@ -683,6 +770,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         currentUser,
         workspaces: allWorkspaces,
         projects,
+        issues,
         notifications,
         unreadCount,
         loading,
@@ -694,9 +782,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         createProject,
         fetchWorkspaces,
         fetchProjects,
-        addIssue,
-        updateIssue,
-        deleteIssue,
+        fetchIssues,
+        createIssue,
+        updateIssueApi,
+        deleteIssueApi,
         markNotificationAsRead,
         markAllNotificationsAsRead,
         clearNotification,

@@ -1,0 +1,197 @@
+import { Request, Response } from 'express';
+import { validationResult } from 'express-validator';
+import * as issueService from '../services/issue';
+
+// Get issue by ID - Context7 pattern
+export const getIssueById = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const issue = await issueService.getIssueById(id, userId);
+    return res.json(issue);
+  } catch (error) {
+    console.error('Get issue error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Issue not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get issues by project ID - Context7 pattern
+export const getIssuesByProjectId = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { projectId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const issues = await issueService.getIssuesByProjectId(projectId, userId);
+    return res.json({
+      success: true,
+      data: issues,
+    });
+  } catch (error) {
+    console.error('Get issues by project error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Project not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Create issue - Context7 pattern
+export const createIssue = async (req: Request, res: Response) => {
+  try {
+    console.log('=== CREATE ISSUE REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User ID:', req.user?.userId);
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { title, description, status, priority, type, projectId, dueDate, tags } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      console.log('User not authenticated');
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    console.log('Creating issue with data:', { title, description, status, priority, type, projectId, dueDate, tags, userId });
+
+    const issue = await issueService.createIssue(
+      { title, description, status, priority, type, projectId, dueDate, tags },
+      userId
+    );
+
+    console.log('Issue created successfully:', issue);
+    return res.status(201).json({
+      success: true,
+      message: 'Issue created successfully',
+      data: issue,
+    });
+  } catch (error) {
+    console.error('Create issue error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Project not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === 'Assignee not found') {
+        return res.status(404).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update issue - Context7 pattern
+export const updateIssue = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { title, description, status, priority, type, dueDate, tags } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const issue = await issueService.updateIssue(
+      id,
+      { title, description, status, priority, type, dueDate, tags },
+      userId
+    );
+
+    return res.json({
+      success: true,
+      message: 'Issue updated successfully',
+      data: issue,
+    });
+  } catch (error) {
+    console.error('Update issue error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Issue not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === 'Assignee not found') {
+        return res.status(404).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Delete issue - Context7 pattern
+export const deleteIssue = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const result = await issueService.deleteIssue(id, userId);
+    return res.json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error('Delete issue error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Issue not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
