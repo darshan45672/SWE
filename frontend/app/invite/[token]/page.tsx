@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,13 +38,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    if (token) {
-      fetchInvitationDetails();
-    }
-  }, [token]);
-
-  const fetchInvitationDetails = async () => {
+  const fetchInvitationDetails = useCallback(async () => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/v1/invitations/${token}`,
@@ -69,7 +63,13 @@ export default function InvitePage() {
       setError("Failed to load invitation details");
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchInvitationDetails();
+    }
+  }, [token, fetchInvitationDetails]);
 
   const handleAcceptInvitation = async () => {
     setAccepting(true);
@@ -230,7 +230,7 @@ export default function InvitePage() {
         <CardHeader>
           <CardTitle className="text-center">Workspace Invitation</CardTitle>
           <CardDescription className="text-center">
-            You've been invited to join a workspace
+            You&apos;ve been invited to join a workspace
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

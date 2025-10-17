@@ -335,7 +335,7 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
                                 ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
                                 li: ({ node, ...props }) => <li className="text-sm" {...props} />,
                                 // Style code blocks
-                                code: ({ node, inline, className, children, ...props }: any) => {
+                                code: ({ inline, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
                                   if (inline) {
                                     return (
                                       <code

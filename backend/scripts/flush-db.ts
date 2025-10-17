@@ -10,21 +10,13 @@ async function flushDatabase() {
     // Delete all records from all tables
     // Order matters due to relationships - delete children first
     
+    console.log('� Deleting notifications...');
+    const notifications = await prisma.notification.deleteMany({});
+    console.log(`   ✓ Deleted ${notifications.count} notifications`);
+    
     console.log('💬 Deleting messages...');
     const messages = await prisma.message.deleteMany({});
     console.log(`   ✓ Deleted ${messages.count} messages`);
-    
-    console.log('👥 Deleting chat room participants...');
-    const chatRoomParticipants = await prisma.chatRoomParticipant.deleteMany({});
-    console.log(`   ✓ Deleted ${chatRoomParticipants.count} chat room participants`);
-    
-    console.log('💬 Deleting chat rooms...');
-    const chatRooms = await prisma.chatRoom.deleteMany({});
-    console.log(`   ✓ Deleted ${chatRooms.count} chat rooms`);
-    
-    console.log('🔔 Deleting notifications...');
-    const notifications = await prisma.notification.deleteMany({});
-    console.log(`   ✓ Deleted ${notifications.count} notifications`);
     
     console.log('💬 Deleting comments...');
     const comments = await prisma.comment.deleteMany({});
@@ -74,15 +66,12 @@ async function flushDatabase() {
     console.log(`   🏷️  Tags:                     ${tags.count}`);
     console.log(`   🏷️  Issue Tags:               ${issueTags.count}`);
     console.log(`   💬 Comments:                 ${comments.count}`);
-    console.log(`   🔔 Notifications:            ${notifications.count}`);
-    console.log(`   💬 Chat Rooms:               ${chatRooms.count}`);
-    console.log(`   👥 Chat Room Participants:   ${chatRoomParticipants.count}`);
-    console.log(`   💬 Messages:                 ${messages.count}`);
+    console.log(`   � Messages:                 ${messages.count}`);
+    console.log(`   � Notifications:            ${notifications.count}`);
     console.log('═══════════════════════════════════════');
     const total = users.count + workspaces.count + workspaceMembers.count + workspaceInvitations.count +
                   projects.count + issues.count + 
-                  tags.count + issueTags.count + comments.count + notifications.count + 
-                  chatRooms.count + chatRoomParticipants.count + messages.count;
+                  tags.count + issueTags.count + comments.count + messages.count + notifications.count;
     console.log(`   🗑️  Total Records Deleted:   ${total}`);
     console.log('═══════════════════════════════════════\n');
     

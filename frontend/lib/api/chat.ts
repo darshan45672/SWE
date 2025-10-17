@@ -17,7 +17,7 @@ export interface ChatMessage {
   };
   projectId: string;
   isAIMessage?: boolean;
-  aiContext?: any;
+  aiContext?: Record<string, unknown>;
   parentMessageId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -60,7 +60,7 @@ export async function fetchProjectMessages(
     const data = await response.json();
     
     // Convert date strings to Date objects
-    data.messages = data.messages.map((msg: any) => ({
+    data.messages = data.messages.map((msg: ChatMessage) => ({
       ...msg,
       createdAt: new Date(msg.createdAt),
       updatedAt: new Date(msg.updatedAt),
