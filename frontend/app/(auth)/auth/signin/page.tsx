@@ -35,6 +35,9 @@ function SignInForm() {
   const [apiError, setApiError] = useState<string>("");
   const [twoFactorError, setTwoFactorError] = useState<string>("");
   const [is2FALoading, setIs2FALoading] = useState(false);
+  const [showVerificationRequired, setShowVerificationRequired] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Context7 pattern: Show redirect message if user was redirected
   const isRedirected = searchParams.get('from') !== null;
@@ -44,6 +47,14 @@ function SignInForm() {
       console.log('🔒 User redirected from protected route:', redirectTo);
     }
   }, [isRedirected, redirectTo]);
+
+  // Cooldown timer for resend verification
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const validate = (): boolean => {
     const newErrors: Partial<SignInFormData> = {};
@@ -87,8 +98,16 @@ function SignInForm() {
           router.push(redirectTo);
         }
       } else {
-        console.error('❌ Login failed:', result.message);
-        setApiError(result.message || 'Login failed. Please try again.');
+        // Check if email verification is required
+        if (result.requiresVerification && result.email) {
+          console.log('📧 Email verification required for:', result.email);
+          setUserEmail(result.email);
+          setShowVerificationRequired(true);
+          setApiError(""); // Clear any generic error
+        } else {
+          console.error('❌ Login failed:', result.message);
+          setApiError(result.message || 'Login failed. Please try again.');
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -119,6 +138,31 @@ function SignInForm() {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0 || !userEmail) return;
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/verification/resend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResendCooldown(60); // 60 second cooldown
+        console.log('✅ Verification email resent successfully');
+      } else {
+        console.error('❌ Failed to resend verification:', data.message);
+      }
+    } catch (error) {
+      console.error('Resend verification error:', error);
+    }
+  };
+
   return (
     <>
       <TwoFactorVerificationDialog
@@ -139,6 +183,48 @@ function SignInForm() {
             <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <AlertDescription className="text-blue-800 dark:text-blue-200">
               Please sign in to access the requested page.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Email Verification Required Alert */}
+        {showVerificationRequired && userEmail && (
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200">
+              <div className="space-y-3">
+                <p className="font-medium">Email Verification Required</p>
+                <p className="text-sm">
+                  Please verify your email address (<strong>{userEmail}</strong>) to continue. 
+                  Check your inbox for the verification link.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResendVerification}
+                    disabled={resendCooldown > 0}
+                    className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                  >
+                    {resendCooldown > 0 ? (
+                      <>Resend in {resendCooldown}s</>
+                    ) : (
+                      <>Resend Verification Link</>
+                    )}
+                  </Button>
+                  <Link href="/auth/verify-email">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                    >
+                      Go to Verification Page
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </AlertDescription>
           </Alert>
         )}

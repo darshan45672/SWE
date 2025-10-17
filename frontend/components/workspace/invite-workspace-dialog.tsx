@@ -76,7 +76,7 @@ export function InviteWorkspaceDialog({ variant = "default" }: InviteWorkspaceDi
         setCopied(false);
         setSuccess("");
       }, 2000);
-    } catch (error) {
+    } catch {
       setError("Could not copy link to clipboard");
     }
   };

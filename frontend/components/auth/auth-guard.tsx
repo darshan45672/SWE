@@ -8,16 +8,19 @@ interface AuthGuardProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
   redirectTo?: string;
+  requireEmailVerification?: boolean;
 }
 
 /**
  * Context7-inspired AuthGuard component
  * Provides client-side route protection with automatic redirection
+ * Now includes email verification check
  */
 export function AuthGuard({ 
   children, 
   fallback = <div className="flex items-center justify-center min-h-screen">Loading...</div>,
-  redirectTo = '/auth/signin'
+  redirectTo = '/auth/signin',
+  requireEmailVerification = true
 }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -30,8 +33,19 @@ export function AuthGuard({
       
       // Use replace to avoid back button issues
       router.replace(redirectUrl);
+      return;
     }
-  }, [user, loading, router, redirectTo]);
+
+    // Check email verification if required
+    if (!loading && user && requireEmailVerification && !user.emailVerified) {
+      const currentPath = window.location.pathname;
+      
+      // Don't redirect if already on verification page or settings
+      if (currentPath !== '/auth/verify-email' && currentPath !== '/settings') {
+        router.replace('/auth/verify-email');
+      }
+    }
+  }, [user, loading, router, redirectTo, requireEmailVerification]);
 
   // Show loading state while checking authentication
   if (loading) {

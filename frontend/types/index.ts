@@ -8,6 +8,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  emailVerified?: boolean;
   avatar?: string;
   bio?: string;
   phone?: string;

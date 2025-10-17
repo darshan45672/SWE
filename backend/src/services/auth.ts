@@ -37,6 +37,9 @@ export interface AuthResponse {
   // 2FA fields
   requires2FA?: boolean;
   userId?: string;
+  // Email verification fields
+  requiresVerification?: boolean;
+  email?: string;
 }
 
 export class AuthService {
@@ -113,7 +116,7 @@ export class AuthService {
         jobTitle: jobTitle || undefined,
         timezone: timezone || undefined,
         language: language || "en",
-        emailVerified: true // Disabled email verification - users can access immediately
+        emailVerified: false // Email verification required - user must verify email before full access
       };
 
       console.log('🔍 Context7 Database Debug - Data being saved:', {
@@ -178,6 +181,16 @@ export class AuthService {
         };
       }
 
+      // Check if email is verified
+      if (!user.emailVerified) {
+        return {
+          success: false,
+          message: 'Please verify your email address to continue',
+          requiresVerification: true,
+          email: user.email
+        };
+      }
+
       // Check if 2FA is enabled
       if (user.twoFactorEnabled) {
         return {
@@ -220,6 +233,7 @@ export class AuthService {
           id: true,
           email: true,
           name: true,
+          emailVerified: true,
           avatar: true,
           bio: true,
           phone: true,

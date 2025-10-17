@@ -26,7 +26,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import type { Priority, IssueStatus, IssueType } from "@/types";
+import type { Priority, IssueType } from "@/types";
 
 export default function DashboardPage() {
   const { user } = useAuth();

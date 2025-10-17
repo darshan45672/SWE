@@ -336,8 +336,26 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground">Primary email</p>
                   </div>
                 </div>
-                <Badge>Verified</Badge>
+                {currentUser.emailVerified ? (
+                  <Badge className="bg-green-500 hover:bg-green-600">Verified</Badge>
+                ) : (
+                  <Badge variant="destructive">Not Verified</Badge>
+                )}
               </div>
+              {!currentUser.emailVerified && (
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Please verify your email to access all features
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => router.push('/auth/verify-email')}
+                  >
+                    Verify Email
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

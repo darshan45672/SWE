@@ -7,6 +7,7 @@ import { TopNavigation } from "@/components/layout/top-navigation";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { cn } from "@/lib/utils";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 interface LayoutClientProps {
   children: ReactNode;
@@ -16,8 +17,9 @@ export function LayoutClient({ children }: LayoutClientProps) {
   const [isChatOpen, setIsChatOpen] = useState(false); // Default closed on mobile
 
   return (
-    <WorkspaceProvider>
-      <SidebarProvider defaultOpen={true}>
+    <AuthGuard>
+      <WorkspaceProvider>
+        <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen w-full overflow-hidden">
           {/* Left Sidebar */}
           <AppSidebar />
@@ -66,5 +68,6 @@ export function LayoutClient({ children }: LayoutClientProps) {
         </div>
       </SidebarProvider>
     </WorkspaceProvider>
+    </AuthGuard>
   );
 }

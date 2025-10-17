@@ -3,6 +3,9 @@ import { AuthService, RegisterData, LoginData } from '../services/auth';
 import { setTokenCookie, clearTokenCookie } from '../auth/jwt';
 import { AuthenticatedRequest } from '../auth/middleware';
 import { UpdateProfileData } from '../types/profile';
+import { sendVerificationEmail } from '../services/email';
+import { generateVerificationToken } from './verification';
+import prisma from '../lib/prisma';
 
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
@@ -16,7 +19,30 @@ export class AuthController {
       const registerData: RegisterData = req.body;
       const result = await AuthService.register(registerData);
 
-      if (result.success && result.token) {
+      if (result.success && result.token && result.user) {
+        // Generate verification token
+        const verificationToken = generateVerificationToken();
+        const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // Update user with verification token
+        await prisma.user.update({
+          where: { id: result.user.id },
+          data: {
+            verificationToken,
+            verificationTokenExpiry,
+          },
+        });
+
+        // Send verification email (async, don't wait)
+        sendVerificationEmail(result.user.email, result.user.name, verificationToken)
+          .then(() => {
+            console.log('✅ Verification email sent to:', result.user!.email);
+          })
+          .catch((error) => {
+            console.error('❌ Failed to send verification email:', error);
+            // Don't fail registration if email fails
+          });
+
         // Set HTTP-only cookie for security
         setTokenCookie(res, result.token);
         
@@ -24,7 +50,8 @@ export class AuthController {
           success: true,
           message: result.message,
           user: result.user,
-          token: result.token
+          token: result.token,
+          emailVerificationSent: true,
         });
       } else {
         res.status(400).json({

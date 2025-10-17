@@ -8,6 +8,7 @@ import projectRoutes from './routes/project'
 import issueRoutes from './routes/issue'
 import notificationRoutes from './routes/notification'
 import twoFactorRoutes from './routes/twoFactor'
+import verificationRoutes from './routes/verification'
 
 // Load environment variables
 dotenv.config()
@@ -49,6 +50,9 @@ app.use('/api/v1/notifications', notificationRoutes)
 
 // 2FA routes - Context7 pattern with authentication
 app.use('/api/v1/2fa', twoFactorRoutes)
+
+// Email verification routes
+app.use('/api/v1/verification', verificationRoutes)
 
 // API routes
 app.get('/api/v1', (req, res) => {

@@ -26,6 +26,8 @@ model User {
   company   String?
   jobTitle  String?
   emailVerified Boolean @default(false)
+  verificationToken String?
+  verificationTokenExpiry DateTime?
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret String?
   twoFactorBackupCodes String[] @default([])

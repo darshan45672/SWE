@@ -97,6 +97,9 @@ export interface AuthResponse {
   error?: string;
   user?: User;
   token?: string;
+  // Email verification fields
+  requiresVerification?: boolean;
+  email?: string;
 }
 
 export interface ProfileResponse {
