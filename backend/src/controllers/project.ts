@@ -206,3 +206,79 @@ export const deleteProject = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Set project as latest choice - Context7 pattern
+ * PUT /api/projects/:id/set-latest
+ */
+export const setProjectAsLatest = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const { id } = req.params;
+
+    // Set project as latest choice
+    const project = await projectService.setProjectAsLatestChoice(id, userId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Project set as latest choice',
+      data: project,
+    });
+  } catch (error) {
+    console.error('Set project as latest error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to set project as latest choice',
+    });
+  }
+};
+
+/**
+ * Toggle project active status - Context7 pattern
+ * PUT /api/projects/:id/toggle-active
+ */
+export const toggleProjectActive = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean value',
+      });
+    }
+
+    // Toggle project active status
+    const project = await projectService.toggleProjectActiveStatus(id, userId, isActive);
+
+    return res.status(200).json({
+      success: true,
+      message: `Project ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: project,
+    });
+  } catch (error) {
+    console.error('Toggle project active error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to toggle project status',
+    });
+  }
+};

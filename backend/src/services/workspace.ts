@@ -35,6 +35,36 @@ export const createWorkspace = async (
   data: CreateWorkspaceData
 ): Promise<WorkspaceWithMembers> => {
   try {
+    // Check if user has any existing workspaces
+    const existingWorkspaces = await prisma.workspace.findMany({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+    });
+
+    // If this is the first workspace, set latestChoice to true
+    const isFirstWorkspace = existingWorkspaces.length === 0;
+
+    // If this is NOT the first workspace, set all other workspaces' latestChoice to false
+    if (!isFirstWorkspace) {
+      await prisma.workspace.updateMany({
+        where: {
+          members: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+        data: {
+          latestChoice: false,
+        },
+      });
+    }
+
     // Create workspace with the creator as OWNER
     const workspace = await prisma.workspace.create({
       data: {
@@ -42,6 +72,8 @@ export const createWorkspace = async (
         description: data.description,
         icon: data.icon || '🚀',
         color: data.color || '#3B82F6',
+        isActive: true,
+        latestChoice: isFirstWorkspace, // Set to true only for first workspace
         members: {
           create: {
             userId: userId,
@@ -290,5 +322,102 @@ export const deleteWorkspace = async (
   } catch (error) {
     console.error('Error deleting workspace:', error);
     throw new Error('Failed to delete workspace');
+  }
+};
+
+/**
+ * Set workspace as latest choice - Context7 pattern
+ * @param workspaceId - ID of the workspace to set as latest
+ * @param userId - ID of the user
+ * @returns Updated workspace
+ */
+export const setWorkspaceAsLatestChoice = async (
+  workspaceId: string,
+  userId: string
+): Promise<Workspace> => {
+  try {
+    // Verify user has access to this workspace
+    const membership = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: workspaceId,
+        userId: userId,
+      },
+    });
+
+    if (!membership) {
+      throw new Error('Access denied: Not a member of this workspace');
+    }
+
+    // Set all user's workspaces' latestChoice to false
+    await prisma.workspace.updateMany({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      data: {
+        latestChoice: false,
+      },
+    });
+
+    // Set the selected workspace's latestChoice to true
+    const workspace = await prisma.workspace.update({
+      where: {
+        id: workspaceId,
+      },
+      data: {
+        latestChoice: true,
+      },
+    });
+
+    return workspace;
+  } catch (error) {
+    console.error('Error setting workspace as latest choice:', error);
+    throw new Error('Failed to update workspace choice');
+  }
+};
+
+/**
+ * Toggle workspace active status - Context7 pattern
+ * @param workspaceId - ID of the workspace
+ * @param userId - ID of the user (must be OWNER)
+ * @param isActive - New active status
+ * @returns Updated workspace
+ */
+export const toggleWorkspaceActiveStatus = async (
+  workspaceId: string,
+  userId: string,
+  isActive: boolean
+): Promise<Workspace> => {
+  try {
+    // Check if user is an OWNER
+    const membership = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: workspaceId,
+        userId: userId,
+        role: 'OWNER',
+      },
+    });
+
+    if (!membership) {
+      throw new Error('Access denied: Only owners can change workspace status');
+    }
+
+    // Update workspace active status
+    const workspace = await prisma.workspace.update({
+      where: {
+        id: workspaceId,
+      },
+      data: {
+        isActive: isActive,
+      },
+    });
+
+    return workspace;
+  } catch (error) {
+    console.error('Error toggling workspace active status:', error);
+    throw new Error('Failed to update workspace status');
   }
 };

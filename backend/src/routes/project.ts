@@ -70,4 +70,24 @@ router.delete(
   projectController.deleteProject
 );
 
+/**
+ * @route   PUT /api/projects/:id/set-latest
+ * @desc    Set project as latest choice
+ * @access  Private (workspace members only)
+ */
+router.put(
+  '/:id/set-latest',
+  projectController.setProjectAsLatest
+);
+
+/**
+ * @route   PUT /api/projects/:id/toggle-active
+ * @desc    Toggle project active status
+ * @access  Private (workspace owners and admins only)
+ */
+router.put(
+  '/:id/toggle-active',
+  projectController.toggleProjectActive
+);
+
 export default router;

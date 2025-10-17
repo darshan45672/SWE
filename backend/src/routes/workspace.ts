@@ -67,4 +67,24 @@ router.delete(
   workspaceController.deleteWorkspace
 );
 
+/**
+ * @route   PUT /api/workspaces/:id/set-latest
+ * @desc    Set workspace as latest choice
+ * @access  Private (workspace members only)
+ */
+router.put(
+  '/:id/set-latest',
+  workspaceController.setWorkspaceAsLatest
+);
+
+/**
+ * @route   PUT /api/workspaces/:id/toggle-active
+ * @desc    Toggle workspace active status
+ * @access  Private (workspace owners only)
+ */
+router.put(
+  '/:id/toggle-active',
+  workspaceController.toggleWorkspaceActive
+);
+
 export default router;

@@ -5,6 +5,21 @@ export interface Workspace {
   name: string;
   icon?: string;
   color?: string;
+  isActive?: boolean;
+  latestChoice?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  workspaceId: string;
+  isActive?: boolean;
+  latestChoice?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const mockWorkspaces: Workspace[] = [

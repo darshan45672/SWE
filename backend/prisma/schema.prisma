@@ -42,13 +42,15 @@ model User {
 
 // Workspace model
 model Workspace {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  description String?
-  icon        String?
-  color       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  icon         String?
+  color        String?
+  isActive     Boolean  @default(true)
+  latestChoice Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   members   WorkspaceMember[]
@@ -74,12 +76,14 @@ model WorkspaceMember {
 
 // Project model (Simplified - no boards)
 model Project {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  description String?
-  workspaceId String   @db.ObjectId
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  workspaceId  String   @db.ObjectId
+  isActive     Boolean  @default(true)
+  latestChoice Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   workspace Workspace @relation(fields: [workspaceId], references: [id])

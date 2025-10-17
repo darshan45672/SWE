@@ -13,6 +13,10 @@ interface Project {
   key?: string;
   description?: string;
   workspaceId: string;
+  isActive?: boolean;
+  latestChoice?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface CreateIssueData {
@@ -146,9 +150,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (data.success && data.data) {
         setAllWorkspaces(data.data);
         
-        // Set first workspace as current if none selected
+        // Set workspace with latestChoice=true as current, otherwise first workspace - Context7 pattern
         if (!currentWorkspace && data.data.length > 0) {
-          setCurrentWorkspace(data.data[0]);
+          const latestWorkspace = data.data.find((w: Workspace) => w.latestChoice === true);
+          setCurrentWorkspace(latestWorkspace || data.data[0]);
         }
       }
     } catch (error) {
@@ -258,20 +263,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       console.log('Fetched projects:', data);
       
       if (data.success && data.data) {
-        // Map API projects to local Project type (no boards)
+        // Map API projects to local Project type (no boards) - Context7 pattern
         const projects = data.data.map((project: any) => ({
           id: project.id,
           name: project.name,
           key: project.key,
           description: project.description || '',
           workspaceId: project.workspaceId,
+          isActive: project.isActive,
+          latestChoice: project.latestChoice,
+          createdAt: project.createdAt ? new Date(project.createdAt) : undefined,
+          updatedAt: project.updatedAt ? new Date(project.updatedAt) : undefined,
         }));
         
         setAllProjects(projects);
         
-        // Set first project as current if none selected
+        // Set project with latestChoice=true as current, otherwise first project - Context7 pattern
         if (!currentProject && projects.length > 0) {
-          setCurrentProject(projects[0]);
+          const latestProject = projects.find((p: Project) => p.latestChoice === true);
+          setCurrentProject(latestProject || projects[0]);
         }
       }
     } catch (error) {
@@ -471,22 +481,55 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => [notification, ...prev]);
   };
 
-  const switchWorkspace = (workspaceId: string) => {
+  const switchWorkspace = async (workspaceId: string) => {
     const workspace = allWorkspaces.find((w) => w.id === workspaceId);
     if (workspace) {
       setCurrentWorkspace(workspace);
-      // Switch to the first project in the new workspace
-      const firstProjectInWorkspace = allProjects.find(
-        (p) => p.workspaceId === workspaceId
-      );
-      setCurrentProject(firstProjectInWorkspace || null);
+      
+      // Update latestChoice on backend - Context7 pattern
+      if (token) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/workspaces/${workspaceId}/set-latest`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (error) {
+          console.error('Error updating workspace latest choice:', error);
+        }
+      }
+      
+      // Switch to the latest choice project or first project in the new workspace
+      const projectsInWorkspace = allProjects.filter(p => p.workspaceId === workspaceId);
+      const latestProject = projectsInWorkspace.find(p => p.latestChoice === true);
+      const targetProject = latestProject || projectsInWorkspace[0];
+      
+      setCurrentProject(targetProject || null);
     }
   };
 
-  const switchProject = (projectId: string) => {
+  const switchProject = async (projectId: string) => {
     const project = allProjects.find((p) => p.id === projectId);
     if (project) {
       setCurrentProject(project);
+      
+      // Update latestChoice on backend - Context7 pattern
+      if (token) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects/${projectId}/set-latest`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (error) {
+          console.error('Error updating project latest choice:', error);
+        }
+      }
+      
       // Optionally switch workspace if project belongs to different workspace
       if (currentWorkspace && project.workspaceId !== currentWorkspace.id) {
         const workspace = allWorkspaces.find(
