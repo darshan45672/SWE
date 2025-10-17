@@ -21,6 +21,9 @@ export interface ChatMessage {
     avatar?: string;
   };
   projectId: string;
+  isAIMessage?: boolean;
+  aiContext?: any;
+  parentMessageId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +49,7 @@ interface SocketContextType {
   onUserStopTyping: (callback: (data: TypingUser & { projectId: string }) => void) => () => void;
   onUserJoined: (callback: (data: TypingUser & { projectId: string }) => void) => () => void;
   onUserLeft: (callback: (data: TypingUser & { projectId: string }) => void) => () => void;
+  onAITyping: (callback: (data: { projectId: string; isTyping: boolean }) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -254,6 +258,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     [socket]
   );
 
+  const onAITyping = useCallback(
+    (callback: (data: { projectId: string; isTyping: boolean }) => void) => {
+      if (!socket) return () => {};
+      socket.on('ai:typing', callback);
+      return () => {
+        socket.off('ai:typing', callback);
+      };
+    },
+    [socket]
+  );
+
   const value: SocketContextType = {
     socket,
     isConnected,
@@ -268,6 +283,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     onUserStopTyping,
     onUserJoined,
     onUserLeft,
+    onAITyping,
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;

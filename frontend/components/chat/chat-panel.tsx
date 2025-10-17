@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Bot, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useSocket, ChatMessage } from "@/contexts/socket-context";
 import { useAuth } from "@/contexts/auth-context";
 import { fetchProjectMessages } from "@/lib/api/chat";
@@ -21,6 +24,7 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [isAITyping, setIsAITyping] = useState(false);
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,6 +40,7 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
     onMessageDeleted,
     onUserTyping,
     onUserStopTyping,
+    onAITyping,
   } = useSocket();
 
   // Load initial messages
@@ -96,6 +101,20 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
 
     return unsubscribe;
   }, [onMessageDeleted, projectId]);
+
+  // Listen for AI typing indicator
+  useEffect(() => {
+    const unsubscribe = onAITyping((data) => {
+      if (data.projectId === projectId) {
+        setIsAITyping(data.isTyping);
+        if (data.isTyping) {
+          setTimeout(() => scrollToBottom(), 100);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [onAITyping, projectId]);
 
   // Listen for typing indicators
   useEffect(() => {
@@ -202,9 +221,9 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
   };
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-background overflow-hidden">
       {/* Chat Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      <div className="flex-shrink-0 flex items-center justify-between border-b px-4 py-3">
         <div>
           <h3 className="font-semibold">{projectName || "Project Chat"}</h3>
           <p className="text-xs text-muted-foreground">
@@ -217,27 +236,31 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <p>No messages yet. Start the conversation!</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((message, index) => {
-              const isCurrentUser = message.senderId === user?.id;
-              const showAvatar =
-                index === 0 ||
-                messages[index - 1].senderId !== message.senderId;
-              const showDate =
-                index === 0 ||
-                formatDate(messages[index - 1].createdAt) !==
-                  formatDate(message.createdAt);
+      {/* Messages Area - Scrollable */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4">
+            {isLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                <p>No messages yet. Start the conversation!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message, index) => {
+                  const isCurrentUser = message.senderId === user?.id && !message.isAIMessage;
+                  const isAIMessage = message.isAIMessage === true;
+                  const showAvatar =
+                    index === 0 ||
+                    messages[index - 1].senderId !== message.senderId ||
+                    messages[index - 1].isAIMessage !== message.isAIMessage;
+                  const showDate =
+                    index === 0 ||
+                    formatDate(messages[index - 1].createdAt) !==
+                      formatDate(message.createdAt);
 
               return (
                 <div key={message.id}>
@@ -254,10 +277,14 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
                     }`}
                   >
                     {showAvatar ? (
-                      <Avatar className="h-8 w-8">
+                      <Avatar className={`h-8 w-8 ${isAIMessage ? "bg-gradient-to-br from-purple-500 to-pink-500" : ""}`}>
                         <AvatarFallback className="text-xs">
-                          {message.sender.avatar ||
-                            message.sender.name.slice(0, 2).toUpperCase()}
+                          {isAIMessage ? (
+                            <Bot className="h-4 w-4 text-white" />
+                          ) : (
+                            message.sender.avatar ||
+                            message.sender.name.slice(0, 2).toUpperCase()
+                          )}
                         </AvatarFallback>
                       </Avatar>
                     ) : (
@@ -272,8 +299,14 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
                       {showAvatar && (
                         <div className="mb-1 flex items-center gap-2 text-xs">
                           <span className="font-medium">
-                            {message.sender.name}
+                            {isAIMessage ? "AI Assistant" : message.sender.name}
                           </span>
+                          {isAIMessage && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              <Sparkles className="h-2.5 w-2.5 mr-1" />
+                              AI
+                            </Badge>
+                          )}
                           <span className="text-muted-foreground">
                             {formatTime(message.createdAt)}
                           </span>
@@ -281,38 +314,135 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
                       )}
                       <div
                         className={`rounded-lg px-3 py-2 ${
-                          isCurrentUser
+                          isAIMessage
+                            ? "bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 border border-purple-200 dark:border-purple-800"
+                            : isCurrentUser
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap text-sm">
-                          {message.content}
-                        </p>
+                        {isAIMessage ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                // Style headings
+                                h1: ({ node, ...props }) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-base font-semibold mt-2 mb-1" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-sm font-semibold mt-1 mb-1" {...props} />,
+                                // Style lists
+                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
+                                li: ({ node, ...props }) => <li className="text-sm" {...props} />,
+                                // Style code blocks
+                                code: ({ node, inline, className, children, ...props }: any) => {
+                                  if (inline) {
+                                    return (
+                                      <code
+                                        className="bg-purple-200 dark:bg-purple-800/50 px-1.5 py-0.5 rounded text-xs font-mono"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </code>
+                                    );
+                                  }
+                                  return (
+                                    <code
+                                      className="block bg-purple-200 dark:bg-purple-800/50 p-2 rounded text-xs font-mono overflow-x-auto my-2"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </code>
+                                  );
+                                },
+                                // Style paragraphs
+                                p: ({ node, ...props }) => <p className="text-sm my-1" {...props} />,
+                                // Style blockquotes
+                                blockquote: ({ node, ...props }) => (
+                                  <blockquote className="border-l-4 border-purple-400 pl-3 italic my-2" {...props} />
+                                ),
+                                // Style tables
+                                table: ({ node, ...props }) => (
+                                  <div className="overflow-x-auto my-2">
+                                    <table className="min-w-full divide-y divide-purple-200 dark:divide-purple-800" {...props} />
+                                  </div>
+                                ),
+                                thead: ({ node, ...props }) => (
+                                  <thead className="bg-purple-100 dark:bg-purple-900/50" {...props} />
+                                ),
+                                th: ({ node, ...props }) => (
+                                  <th className="px-3 py-2 text-left text-xs font-medium" {...props} />
+                                ),
+                                td: ({ node, ...props }) => (
+                                  <td className="px-3 py-2 text-sm border-t border-purple-200 dark:border-purple-800" {...props} />
+                                ),
+                                // Style strong/bold
+                                strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
+                              }}
+                            >
+                              {message.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap text-sm">
+                            {message.content}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               );
             })}
+            
+            {/* AI Typing Indicator */}
+            {isAITyping && (
+              <div className="flex gap-3">
+                <Avatar className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-500">
+                  <AvatarFallback className="text-xs">
+                    <Bot className="h-4 w-4 text-white" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start max-w-[75%]">
+                  <div className="mb-1 flex items-center gap-2 text-xs">
+                    <span className="font-medium">AI Assistant</span>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      <Sparkles className="h-2.5 w-2.5 mr-1" />
+                      AI
+                    </Badge>
+                  </div>
+                  <div className="rounded-lg px-3 py-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            </div>
+            )
+            }
+            
             <div ref={scrollRef} />
-          </div>
-        )}
 
-        {/* Typing Indicator */}
-        {typingUsers.size > 0 && (
-          <div className="mt-4 text-xs text-muted-foreground">
-            {Array.from(typingUsers).join(", ")} {typingUsers.size === 1 ? "is" : "are"}{" "}
-            typing...
+            {/* Typing Indicator */}
+            {typingUsers.size > 0 && (
+              <div className="text-xs text-muted-foreground">
+                {Array.from(typingUsers).join(", ")} {typingUsers.size === 1 ? "is" : "are"}{" "}
+                typing...
+              </div>
+            )}
           </div>
-        )}
-      </ScrollArea>
+        </ScrollArea>
+      </div>
 
       {/* Message Input */}
-      <div className="border-t p-4">
+      <div className="flex-shrink-0 border-t p-4">
         <div className="flex gap-2">
           <Input
-            placeholder="Type a message..."
+            placeholder="Type a message... (Use @AI to ask AI Assistant)"
             value={newMessage}
             onChange={(e) => {
               setNewMessage(e.target.value);
@@ -336,7 +466,7 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
           </Button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Press Enter to send, Shift + Enter for new line
+          Press Enter to send, Shift + Enter for new line • Use @AI to ask questions
         </p>
       </div>
     </div>

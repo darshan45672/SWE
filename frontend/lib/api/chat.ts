@@ -16,6 +16,9 @@ export interface ChatMessage {
     avatar?: string;
   };
   projectId: string;
+  isAIMessage?: boolean;
+  aiContext?: any;
+  parentMessageId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

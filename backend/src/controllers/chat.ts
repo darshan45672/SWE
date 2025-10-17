@@ -43,6 +43,9 @@ export async function getProjectMessages(req: AuthenticatedRequest, res: Respons
       content: string;
       senderId: string;
       projectId: string;
+      isAIMessage: boolean;
+      aiContext: any;
+      parentMessageId: string | null;
       createdAt: Date;
       updatedAt: Date;
       sender: {
@@ -91,6 +94,9 @@ export async function getProjectMessages(req: AuthenticatedRequest, res: Respons
         avatar: msg.sender.avatar || undefined,
       },
       projectId: msg.projectId,
+      isAIMessage: msg.isAIMessage,
+      aiContext: msg.aiContext,
+      parentMessageId: msg.parentMessageId,
       createdAt: msg.createdAt,
       updatedAt: msg.updatedAt,
     }));

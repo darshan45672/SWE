@@ -7,6 +7,7 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { verifyToken, JwtPayload } from '../auth/jwt';
 import prisma from '../lib/prisma';
+import aiService, { AIService } from '../services/ai.js';
 import {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -195,6 +196,7 @@ export function initializeSocket(httpServer: HttpServer): TypedServer {
               },
             },
           },
+          select: { id: true, name: true, workspaceId: true },
         });
 
         if (!project) {
@@ -202,12 +204,16 @@ export function initializeSocket(httpServer: HttpServer): TypedServer {
           return;
         }
 
-        // Save message to database
-        const message = await prisma.message.create({
+        // Check if message mentions AI
+        const isAIMention = AIService.isAIMention(content);
+
+        // Save user message to database
+        const userMessage = await prisma.message.create({
           data: {
             content: content.trim(),
             senderId: socket.data.userId,
             projectId: projectId,
+            isAIMessage: false,
           },
           include: {
             sender: {
@@ -221,28 +227,184 @@ export function initializeSocket(httpServer: HttpServer): TypedServer {
           },
         });
 
-        // Format message data
-        const messageData: ChatMessageData = {
-          id: message.id,
-          content: message.content,
-          senderId: message.senderId,
+        // Format user message data
+        const userMessageData: ChatMessageData = {
+          id: userMessage.id,
+          content: userMessage.content,
+          senderId: userMessage.senderId,
           sender: {
-            id: message.sender.id,
-            name: message.sender.name,
-            email: message.sender.email,
-            avatar: message.sender.avatar || undefined,
+            id: userMessage.sender.id,
+            name: userMessage.sender.name,
+            email: userMessage.sender.email,
+            avatar: userMessage.sender.avatar || undefined,
           },
-          projectId: message.projectId,
-          createdAt: message.createdAt,
-          updatedAt: message.updatedAt,
+          projectId: userMessage.projectId,
+          isAIMessage: false,
+          createdAt: userMessage.createdAt,
+          updatedAt: userMessage.updatedAt,
         };
 
-        // Broadcast to all users in the project room (including sender)
-        io.to(`project:${projectId}`).emit('message:new', messageData);
+        // Broadcast user message to all users in the project room (including sender)
+        io.to(`project:${projectId}`).emit('message:new', userMessageData);
 
         console.log(`💬 Message sent by ${socket.data.userName} in project ${projectId}`);
 
-        callback?.({ success: true, message: messageData });
+        callback?.({ success: true, message: userMessageData });
+
+        // Handle AI mention
+        if (isAIMention && aiService.isAvailable()) {
+          console.log(`🤖 AI mentioned by ${socket.data.userName}`);
+          
+          // Emit typing indicator for AI
+          io.to(`project:${projectId}`).emit('ai:typing', {
+            projectId,
+            isTyping: true,
+          });
+
+          try {
+            // Extract the actual message without @AI
+            const aiQuery = AIService.extractMessage(content);
+
+            // Generate AI response
+            const aiResponse = await aiService.generateResponse({
+              message: aiQuery,
+              projectId: project.id,
+              workspaceId: project.workspaceId,
+              userId: socket.data.userId,
+              userName: socket.data.userName,
+            });
+
+            // Save AI response to database
+            const aiMessage = await prisma.message.create({
+              data: {
+                content: aiResponse.content,
+                senderId: socket.data.userId, // AI uses the same user for tracking
+                projectId: projectId,
+                isAIMessage: true,
+                aiContext: aiResponse.context,
+                parentMessageId: userMessage.id,
+              },
+              include: {
+                sender: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    avatar: true,
+                  },
+                },
+              },
+            });
+
+            // Format AI message data
+            const aiMessageData: ChatMessageData = {
+              id: aiMessage.id,
+              content: aiMessage.content,
+              senderId: aiMessage.senderId,
+              sender: {
+                id: 'ai',
+                name: 'AI Assistant',
+                email: 'ai@assistant.com',
+                avatar: undefined,
+              },
+              projectId: aiMessage.projectId,
+              isAIMessage: true,
+              aiContext: aiResponse.context,
+              parentMessageId: userMessage.id,
+              createdAt: aiMessage.createdAt,
+              updatedAt: aiMessage.updatedAt,
+            };
+
+            // Stop typing indicator
+            io.to(`project:${projectId}`).emit('ai:typing', {
+              projectId,
+              isTyping: false,
+            });
+
+            // Broadcast AI response
+            io.to(`project:${projectId}`).emit('message:new', aiMessageData);
+
+            console.log(`🤖 AI responded in project ${projectId}`);
+          } catch (error) {
+            console.error('Error generating AI response:', error);
+            
+            // Stop typing indicator
+            io.to(`project:${projectId}`).emit('ai:typing', {
+              projectId,
+              isTyping: false,
+            });
+
+            // Send error message
+            const errorMessage = await prisma.message.create({
+              data: {
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+                senderId: socket.data.userId,
+                projectId: projectId,
+                isAIMessage: true,
+                parentMessageId: userMessage.id,
+              },
+              include: {
+                sender: {
+                  select: { id: true, name: true, email: true, avatar: true },
+                },
+              },
+            });
+
+            const errorMessageData: ChatMessageData = {
+              id: errorMessage.id,
+              content: errorMessage.content,
+              senderId: errorMessage.senderId,
+              sender: {
+                id: 'ai',
+                name: 'AI Assistant',
+                email: 'ai@assistant.com',
+                avatar: undefined,
+              },
+              projectId: errorMessage.projectId,
+              isAIMessage: true,
+              parentMessageId: userMessage.id,
+              createdAt: errorMessage.createdAt,
+              updatedAt: errorMessage.updatedAt,
+            };
+
+            io.to(`project:${projectId}`).emit('message:new', errorMessageData);
+          }
+        } else if (isAIMention && !aiService.isAvailable()) {
+          // AI service not available
+          const notAvailableMessage = await prisma.message.create({
+            data: {
+              content: 'AI features are currently unavailable. Please contact your administrator to configure the AI service.',
+              senderId: socket.data.userId,
+              projectId: projectId,
+              isAIMessage: true,
+              parentMessageId: userMessage.id,
+            },
+            include: {
+              sender: {
+                select: { id: true, name: true, email: true, avatar: true },
+              },
+            },
+          });
+
+          const notAvailableMessageData: ChatMessageData = {
+            id: notAvailableMessage.id,
+            content: notAvailableMessage.content,
+            senderId: notAvailableMessage.senderId,
+            sender: {
+              id: 'ai',
+              name: 'AI Assistant',
+              email: 'ai@assistant.com',
+              avatar: undefined,
+            },
+            projectId: notAvailableMessage.projectId,
+            isAIMessage: true,
+            parentMessageId: userMessage.id,
+            createdAt: notAvailableMessage.createdAt,
+            updatedAt: notAvailableMessage.updatedAt,
+          };
+
+          io.to(`project:${projectId}`).emit('message:new', notAvailableMessageData);
+        }
       } catch (error) {
         console.error('Error sending message:', error);
         callback?.({ success: false, error: 'Failed to send message' });

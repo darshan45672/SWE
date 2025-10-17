@@ -183,14 +183,17 @@ model Comment {
   @@map("comments")
 }
 
-// Message model - Project-specific chat
+// Message model - Project-specific chat with AI support
 model Message {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  content   String
-  senderId  String   @db.ObjectId
-  projectId String   @db.ObjectId
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  content         String
+  senderId        String   @db.ObjectId
+  projectId       String   @db.ObjectId
+  isAIMessage     Boolean  @default(false)
+  aiContext       Json?    // Stores context used for AI response generation
+  parentMessageId String?  @db.ObjectId // References the user message that triggered AI
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   sender  User    @relation(fields: [senderId], references: [id])

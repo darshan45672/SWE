@@ -15,6 +15,9 @@ export interface ChatMessageData {
     avatar?: string;
   };
   projectId: string;
+  isAIMessage?: boolean;
+  aiContext?: any;
+  parentMessageId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +55,9 @@ export interface ServerToClientEvents {
   
   // User left project room
   'user:left': (data: UserPresenceData) => void;
+  
+  // AI is typing
+  'ai:typing': (data: { projectId: string; isTyping: boolean }) => void;
   
   // Connection established confirmation
   'connection:success': (data: { userId: string; socketId: string }) => void;
