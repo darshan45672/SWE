@@ -40,7 +40,6 @@ model User {
   messages            Message[]
   sentNotifications   Notification[]    @relation("NotificationActor")
   receivedNotifications Notification[] @relation("NotificationRecipient")
-  chatRoomParticipants ChatRoomParticipant[]
 
   @@map("users")
 }
@@ -79,7 +78,7 @@ model WorkspaceMember {
   @@map("workspace_members")
 }
 
-// Project model (Simplified - no boards)
+// Project model
 model Project {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   name         String
@@ -93,11 +92,12 @@ model Project {
   // Relations
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   issues    Issue[]
+  messages  Message[]
 
   @@map("projects")
 }
 
-// Issue model (Simplified - status determines column: TODO, IN_PROGRESS, DONE)
+// Issue model
 model Issue {
   id          String      @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -115,7 +115,6 @@ model Issue {
   comments      Comment[]
   tags          IssueTag[]
   notifications Notification[]
-  messages      Message[]
 
   @@map("issues")
 }
@@ -162,48 +161,18 @@ model Comment {
   @@map("comments")
 }
 
-// Chat room model
-model ChatRoom {
-  id        String       @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  type      ChatRoomType @default(GENERAL)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  // Relations
-  messages     Message[]
-  participants ChatRoomParticipant[]
-
-  @@map("chat_rooms")
-}
-
-// Chat room participants
-model ChatRoomParticipant {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String   @db.ObjectId
-  chatRoomId String   @db.ObjectId
-  joinedAt   DateTime @default(now())
-
-  // Relations
-  user     User     @relation(fields: [userId], references: [id])
-  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id])
-
-  @@map("chat_room_participants")
-}
-
-// Message model
+// Message model - Project-specific chat
 model Message {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  content    String
-  senderId   String   @db.ObjectId
-  chatRoomId String?  @db.ObjectId
-  issueId    String?  @db.ObjectId
-  timestamp  DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  senderId  String   @db.ObjectId
+  projectId String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  sender   User      @relation(fields: [senderId], references: [id])
-  chatRoom ChatRoom? @relation(fields: [chatRoomId], references: [id])
-  issue    Issue?    @relation(fields: [issueId], references: [id])
+  sender  User    @relation(fields: [senderId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
 
   @@map("messages")
 }
@@ -262,10 +231,5 @@ enum NotificationType {
   ISSUE_ASSIGNED
   ISSUE_UPDATED
   ISSUE_COMMENT
-}
-
-enum ChatRoomType {
-  GENERAL
-  PROJECT
-  DIRECT_MESSAGE
+  NEW_MESSAGE
 }

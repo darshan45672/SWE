@@ -1,4 +1,5 @@
 import express from 'express'
+import { createServer } from 'http'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
@@ -11,12 +12,19 @@ import notificationRoutes from './routes/notification'
 import twoFactorRoutes from './routes/twoFactor'
 import verificationRoutes from './routes/verification'
 import invitationRoutes from './routes/invitation'
+import chatRoutes from './routes/chat'
+import { initializeSocket } from './socket'
 
 // Load environment variables
 dotenv.config()
 
 const app = express()
+const httpServer = createServer(app)
 const PORT = process.env.PORT || 3001
+
+// Initialize Socket.IO
+const io = initializeSocket(httpServer)
+console.log('✅ Socket.IO initialized')
 
 // Middleware
 app.use(cors({
@@ -59,6 +67,9 @@ app.use('/api/v1/verification', verificationRoutes)
 
 // Invitation routes
 app.use('/api/v1/invitations', invitationRoutes)
+
+// Chat routes
+app.use('/api/v1/chat', chatRoutes)
 
 // API routes
 app.get('/api/v1', (req, res) => {
@@ -124,10 +135,11 @@ process.on('SIGINT', async () => {
   process.exit(0)
 })
 
-// Start server
-app.listen(PORT, () => {
+// Start server with Socket.IO
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`)
   console.log(`📡 API available at http://localhost:${PORT}/api/v1`)
+  console.log(`💬 Socket.IO available at http://localhost:${PORT}`)
   console.log(`🏥 Health check at http://localhost:${PORT}/health`)
   console.log(`🔍 Environment: ${process.env.NODE_ENV || 'development'}`)
 })
