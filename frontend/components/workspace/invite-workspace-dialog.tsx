@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { sendInvitation } from "@/lib/api/invitations";
 
 interface InviteWorkspaceDialogProps {
   variant?: "default" | "sidebar";
@@ -29,10 +30,11 @@ interface InviteWorkspaceDialogProps {
 export function InviteWorkspaceDialog({ variant = "default" }: InviteWorkspaceDialogProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
+  const [role, setRole] = useState("MEMBER");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const { currentWorkspace } = useWorkspace();
 
   // Generate invite link (mock)
@@ -56,15 +58,38 @@ export function InviteWorkspaceDialog({ variant = "default" }: InviteWorkspaceDi
       return;
     }
 
-    // TODO: Implement actual API call to send invite
-    console.log("Sending invite to:", email, "with role:", role);
+    if (!currentWorkspace) {
+      setError("No workspace selected");
+      return;
+    }
 
-    setSuccess(`Invitation sent to ${email}`);
-    setTimeout(() => {
-      setEmail("");
-      setRole("member");
-      setSuccess("");
-    }, 2000);
+    setLoading(true);
+
+    try {
+      // Call the API to send invitation
+      const result = await sendInvitation(currentWorkspace.id, {
+        email,
+        role,
+      });
+
+      if (result.success) {
+        setSuccess(result.message || `Invitation sent to ${email}`);
+        // Clear form and close dialog after 2 seconds
+        setTimeout(() => {
+          setEmail("");
+          setRole("MEMBER");
+          setSuccess("");
+          setOpen(false);
+        }, 2000);
+      } else {
+        setError(result.message || "Failed to send invitation");
+      }
+    } catch (err) {
+      console.error("Exception sending invitation:", err);
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopyLink = async () => {
@@ -149,16 +174,20 @@ export function InviteWorkspaceDialog({ variant = "default" }: InviteWorkspaceDi
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="viewer">Viewer</SelectItem>
+                <SelectItem value="ADMIN">Admin</SelectItem>
+                <SelectItem value="MEMBER">Member</SelectItem>
+                <SelectItem value="VIEWER">Viewer</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <Button onClick={handleSendInvite} className="w-full gap-2">
+          <Button 
+            onClick={handleSendInvite} 
+            className="w-full gap-2"
+            disabled={loading}
+          >
             <Mail className="h-4 w-4" />
-            Send Invitation
+            {loading ? "Sending..." : "Send Invitation"}
           </Button>
 
           {/* Divider */}

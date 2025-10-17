@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import prisma from './lib/prisma'
 import authRoutes from './auth/routes'
@@ -9,6 +10,7 @@ import issueRoutes from './routes/issue'
 import notificationRoutes from './routes/notification'
 import twoFactorRoutes from './routes/twoFactor'
 import verificationRoutes from './routes/verification'
+import invitationRoutes from './routes/invitation'
 
 // Load environment variables
 dotenv.config()
@@ -21,6 +23,7 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true
 }))
+app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -53,6 +56,9 @@ app.use('/api/v1/2fa', twoFactorRoutes)
 
 // Email verification routes
 app.use('/api/v1/verification', verificationRoutes)
+
+// Invitation routes
+app.use('/api/v1/invitations', invitationRoutes)
 
 // API routes
 app.get('/api/v1', (req, res) => {

@@ -17,8 +17,14 @@ export interface AuthenticatedRequest extends Request {
 // Middleware that requires authentication
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   try {
+    // Try to get token from Authorization header first
     const authHeader = req.headers.authorization;
-    const token = extractTokenFromHeader(authHeader);
+    let token = extractTokenFromHeader(authHeader);
+    
+    // If no Authorization header, try to get token from cookie
+    if (!token && req.cookies && req.cookies['auth-token']) {
+      token = req.cookies['auth-token'];
+    }
 
     if (!token) {
       res.status(401).json({

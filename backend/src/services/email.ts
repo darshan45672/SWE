@@ -196,6 +196,80 @@ Best regards,
 The ProjectManager Team
     `.trim(),
   }),
+
+  workspaceInvitation: (inviterName: string, workspaceName: string, invitationUrl: string, isNewUser: boolean) => ({
+    subject: `${inviterName} invited you to join ${workspaceName}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .workspace-badge { background: #667eea; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; margin: 10px 0; }
+            .info-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #999; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 Workspace Invitation</h1>
+            </div>
+            <div class="content">
+              <p>Hi there!</p>
+              <p><strong>${inviterName}</strong> has invited you to join:</p>
+              <div style="text-align: center;">
+                <span class="workspace-badge">📁 ${workspaceName}</span>
+              </div>
+              ${isNewUser ? `
+              <div class="info-box">
+                <strong>📝 New to ProjectManager?</strong>
+                <p>You'll need to create an account and verify your email before you can accept this invitation. Don't worry, it only takes a minute!</p>
+              </div>
+              ` : `
+              <p>Click the button below to accept this invitation and start collaborating!</p>
+              `}
+              <div style="text-align: center;">
+                <a href="${invitationUrl}" class="button">
+                  ${isNewUser ? 'Create Account & Accept' : 'Accept Invitation'}
+                </a>
+              </div>
+              <p>Or copy and paste this link into your browser:</p>
+              <p style="word-break: break-all; color: #667eea;">${invitationUrl}</p>
+              <p style="color: #666; font-size: 14px;"><strong>Note:</strong> This invitation will expire in 7 days.</p>
+              <p>Best regards,<br>The ProjectManager Team</p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} ProjectManager. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `
+Hi there!
+
+${inviterName} has invited you to join ${workspaceName} on ProjectManager.
+
+${isNewUser ? 
+  'You\'ll need to create an account and verify your email before you can accept this invitation.' : 
+  'Click the link below to accept this invitation and start collaborating!'
+}
+
+Accept invitation:
+${invitationUrl}
+
+This invitation will expire in 7 days.
+
+Best regards,
+The ProjectManager Team
+    `.trim(),
+  }),
 };
 
 // Send verification email
@@ -286,6 +360,46 @@ export const sendPasswordResetEmail = async (
   } catch (error) {
     console.error('Error sending password reset email:', error);
     throw new Error('Failed to send password reset email');
+  }
+};
+
+// Send workspace invitation email
+export const sendWorkspaceInvitationEmail = async (
+  email: string,
+  inviterName: string,
+  workspaceName: string,
+  token: string,
+  isNewUser: boolean
+): Promise<void> => {
+  const transporter = createTransporter();
+  
+  const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invite/${token}`;
+  const template = emailTemplates.workspaceInvitation(inviterName, workspaceName, invitationUrl, isNewUser);
+
+  try {
+    console.log('📧 Sending workspace invitation email to:', email);
+    console.log('📧 SMTP Config:', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      user: process.env.SMTP_USER
+    });
+
+    const info = await transporter.sendMail({
+      from: `"${process.env.EMAIL_FROM_NAME || 'ProjectManager'}" <${process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER}>`,
+      to: email,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+
+    console.log('✅ Workspace invitation email sent:', info.messageId);
+    
+    if (process.env.SMTP_HOST?.includes('mailtrap') || process.env.SMTP_HOST?.includes('ethereal')) {
+      console.log('📬 Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+  } catch (error) {
+    console.error('❌ Error sending workspace invitation email:', error);
+    throw new Error('Failed to send workspace invitation email');
   }
 };
 
