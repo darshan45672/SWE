@@ -40,6 +40,7 @@ model User {
   messages            Message[]
   sentNotifications   Notification[]    @relation("NotificationActor")
   receivedNotifications Notification[] @relation("NotificationRecipient")
+  sentInvitations     WorkspaceInvitation[] @relation("SentInvitations")
 
   @@map("users")
 }
@@ -59,6 +60,7 @@ model Workspace {
   // Relations
   members   WorkspaceMember[]
   projects  Project[]
+  invitations WorkspaceInvitation[] @relation("WorkspaceInvitations")
 
   @@map("workspaces")
 }
@@ -76,6 +78,26 @@ model WorkspaceMember {
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@map("workspace_members")
+}
+
+// Workspace invitation model
+model WorkspaceInvitation {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String           @db.ObjectId
+  email       String
+  role        WorkspaceRole    @default(MEMBER)
+  token       String           @unique
+  invitedBy   String           @db.ObjectId
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], name: "WorkspaceInvitations")
+  inviter   User      @relation(fields: [invitedBy], references: [id], name: "SentInvitations")
+
+  @@map("workspace_invitations")
 }
 
 // Project model
@@ -232,4 +254,11 @@ enum NotificationType {
   ISSUE_UPDATED
   ISSUE_COMMENT
   NEW_MESSAGE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }
