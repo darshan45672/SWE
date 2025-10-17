@@ -60,8 +60,8 @@ function DashboardContent({
   currentProject, 
   loading 
 }: { 
-  currentWorkspace: any; 
-  currentProject: any;
+  currentWorkspace: unknown; 
+  currentProject: unknown;
   loading: boolean;
 }) {
   // Show loading state while fetching data - Context7 pattern

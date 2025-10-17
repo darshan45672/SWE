@@ -111,3 +111,82 @@ export interface DeleteAccountResponse {
   message?: string;
   error?: string;
 }
+
+// Two-Factor Authentication types
+
+export interface TwoFactorSetupData {
+  secret: string;
+  qrCode: string; // Data URL for QR code image
+  backupCodes: string[];
+}
+
+export interface TwoFactorSetupResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: TwoFactorSetupData;
+}
+
+export interface TwoFactorEnableRequest {
+  secret: string;
+  token: string;
+  backupCodes: string[];
+}
+
+export interface TwoFactorEnableResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface TwoFactorDisableRequest {
+  password: string;
+}
+
+export interface TwoFactorDisableResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface TwoFactorVerifyRequest {
+  userId: string;
+  token: string;
+  isBackupCode?: boolean;
+}
+
+export interface TwoFactorVerifyResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  token?: string;
+  user?: User;
+}
+
+export interface TwoFactorStatusResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    enabled: boolean;
+  };
+}
+
+export interface TwoFactorRegenerateCodesRequest {
+  password: string;
+}
+
+export interface TwoFactorRegenerateCodesResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    backupCodes: string[];
+  };
+}
+
+// Extended AuthResponse for 2FA flow
+export interface AuthResponseWith2FA extends AuthResponse {
+  requires2FA?: boolean;
+  userId?: string;
+}

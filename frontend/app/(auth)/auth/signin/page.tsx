@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
@@ -11,14 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TwoFactorVerificationDialog } from "@/components/auth/two-factor-verification-dialog";
 import { isValidEmail } from "@/lib/auth-utils";
 import { useAuth } from "@/contexts/auth-context";
 import type { SignInFormData } from "@/types/auth";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, requires2FA, verify2FA } = useAuth();
   
   // Context7 pattern: Get redirect URL from query params
   const redirectTo = searchParams.get('from') || '/';
@@ -32,6 +33,8 @@ export default function SignInPage() {
   const [errors, setErrors] = useState<Partial<SignInFormData>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
+  const [twoFactorError, setTwoFactorError] = useState<string>("");
+  const [is2FALoading, setIs2FALoading] = useState(false);
 
   // Context7 pattern: Show redirect message if user was redirected
   const isRedirected = searchParams.get('from') !== null;
@@ -66,15 +69,23 @@ export default function SignInPage() {
 
     setIsLoading(true);
     setApiError("");
+    setTwoFactorError("");
 
     try {
       console.log('🔐 Attempting login with redirect to:', redirectTo);
       const result = await login(formData.email, formData.password);
       
       if (result.success) {
-        console.log('✅ Login successful, redirecting to:', redirectTo);
-        // Context7 pattern: Redirect to original destination or default
-        router.push(redirectTo);
+        // Check if message indicates 2FA is required
+        if (result.message === '2FA verification required') {
+          console.log('🔐 2FA verification required');
+          // 2FA dialog will be shown automatically via requires2FA state
+          // Don't redirect or show error
+        } else {
+          console.log('✅ Login successful, redirecting to:', redirectTo);
+          // Context7 pattern: Redirect to original destination or default
+          router.push(redirectTo);
+        }
       } else {
         console.error('❌ Login failed:', result.message);
         setApiError(result.message || 'Login failed. Please try again.');
@@ -87,12 +98,41 @@ export default function SignInPage() {
     }
   };
 
+  const handle2FAVerify = async (code: string, isBackupCode: boolean) => {
+    setIs2FALoading(true);
+    setTwoFactorError("");
+
+    try {
+      const result = await verify2FA(code, isBackupCode);
+      
+      if (result.success) {
+        console.log('✅ 2FA verification successful, redirecting to:', redirectTo);
+        router.push(redirectTo);
+      } else {
+        setTwoFactorError(result.message || 'Invalid verification code. Please try again.');
+      }
+    } catch (error) {
+      console.error("2FA verification error:", error);
+      setTwoFactorError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIs2FALoading(false);
+    }
+  };
+
   return (
-    <AuthLayout
-      title="Welcome back"
-      description="Enter your credentials to access your account"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <TwoFactorVerificationDialog
+        open={requires2FA}
+        onVerify={handle2FAVerify}
+        loading={is2FALoading}
+        error={twoFactorError}
+      />
+      
+      <AuthLayout
+        title="Welcome back"
+        description="Enter your credentials to access your account"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
         {/* Context7 pattern: Show redirect notification */}
         {isRedirected && (
           <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
@@ -253,5 +293,20 @@ export default function SignInPage() {
         </p>
       </form>
     </AuthLayout>
+    </>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <AuthLayout title="Welcome back" description="Loading...">
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AuthLayout>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

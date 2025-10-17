@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
  */
 export default function ClearAuthPage() {
   const router = useRouter();
-  const [cleared, setCleared] = useState(false);
 
   const clearAuth = () => {
     // Clear localStorage
@@ -19,8 +18,6 @@ export default function ClearAuthPage() {
     
     // Clear cookies
     document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    
-    setCleared(true);
   };
 
   useEffect(() => {

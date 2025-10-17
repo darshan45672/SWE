@@ -57,7 +57,7 @@ const typeColors = {
 
 export function AppSidebar() {
   const router = useRouter();
-  const { currentProject, issues } = useWorkspace();
+  const { issues } = useWorkspace();
   const { user } = useAuth();
 
   // Filter issues by category using actual issues from context

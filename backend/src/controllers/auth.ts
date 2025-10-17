@@ -46,6 +46,18 @@ export class AuthController {
       const loginData: LoginData = req.body;
       const result = await AuthService.login(loginData);
 
+      // Check if 2FA is required
+      if (result.success && result.requires2FA && result.userId) {
+        res.status(200).json({
+          success: true,
+          message: result.message,
+          requires2FA: true,
+          userId: result.userId
+        });
+        return;
+      }
+
+      // Normal login with token
       if (result.success && result.token) {
         // Set HTTP-only cookie for security
         setTokenCookie(res, result.token);

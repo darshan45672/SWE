@@ -34,6 +34,9 @@ export interface AuthResponse {
   user?: any; // Using any to avoid type complexity with Prisma generated types
   token?: string;
   message: string;
+  // 2FA fields
+  requires2FA?: boolean;
+  userId?: string;
 }
 
 export class AuthService {
@@ -175,7 +178,17 @@ export class AuthService {
         };
       }
 
-      // Generate token
+      // Check if 2FA is enabled
+      if (user.twoFactorEnabled) {
+        return {
+          success: true,
+          message: '2FA verification required',
+          requires2FA: true,
+          userId: user.id
+        };
+      }
+
+      // Generate token (normal login without 2FA)
       const token = generateToken({
         userId: user.id,
         email: user.email

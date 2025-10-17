@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { ArrowLeft, Eye, EyeOff, Shield, Mail, Bell, Laptop, Smartphone, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Mail, Bell, Laptop, Smartphone, Trash2 } from "lucide-react";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { TwoFactorSettings } from "@/components/auth/two-factor-settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,7 +86,6 @@ export default function SettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState(true);
   const [loginNotifications, setLoginNotifications] = useState(false);
@@ -107,12 +107,6 @@ export default function SettingsPage() {
     console.log("Password changed:", data);
     passwordForm.reset();
     setIsLoading(false);
-  };
-
-  const handleToggle2FA = () => {
-    setTwoFactorEnabled(!twoFactorEnabled);
-    // In a real app, this would open a 2FA setup dialog
-    console.log("2FA toggled:", !twoFactorEnabled);
   };
 
   const handleRevokeSession = (sessionId: string) => {
@@ -323,49 +317,8 @@ export default function SettingsPage() {
 
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Two-Factor Authentication</CardTitle>
-              <CardDescription>
-                Add an extra layer of security to your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    <Label htmlFor="2fa" className="text-base font-medium">
-                      Enable 2FA
-                    </Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Secure your account with two-factor authentication
-                  </p>
-                </div>
-                <Switch
-                  id="2fa"
-                  checked={twoFactorEnabled}
-                  onCheckedChange={handleToggle2FA}
-                />
-              </div>
-
-              {twoFactorEnabled && (
-                <div className="rounded-lg border p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Authenticator App</span>
-                    <Badge variant="secondary">Enabled</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Your account is protected with an authenticator app
-                  </p>
-                  <Button variant="outline" size="sm">
-                    Reconfigure
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Two-Factor Authentication */}
+          <TwoFactorSettings />
 
           <Card>
             <CardHeader>
