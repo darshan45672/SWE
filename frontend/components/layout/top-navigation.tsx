@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, User, MessageSquare, LogOut } from "lucide-react";
+import { Search, User, MessageSquare, LogOut, FolderKanban, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +123,15 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push("/")}>
+                  <FolderKanban className="mr-2 h-4 w-4" />
+                  <span>Board</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>Dashboard</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push("/profile")}>
                   <User className="mr-2 h-4 w-4" />
