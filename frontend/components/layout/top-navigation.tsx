@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { NotificationDropdown } from "@/components/layout/notification-dropdown";
+import { InviteWorkspaceDialog } from "@/components/workspace/invite-workspace-dialog";
 import { useAuth } from "@/contexts/auth-context";
 
 interface TopNavigationProps {
@@ -85,6 +86,9 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
 
           {/* Theme Switcher */}
           <ThemeSwitcher />
+
+          {/* Invite Workspace */}
+          {isAuthenticated && <InviteWorkspaceDialog />}
 
           {/* Chat Toggle - Now visible on mobile */}
           <Button 

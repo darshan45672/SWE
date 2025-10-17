@@ -37,6 +37,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
 import { ProjectSwitcher } from "@/components/workspace/project-switcher";
+import { InviteWorkspaceDialog } from "@/components/workspace/invite-workspace-dialog";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useAuth } from "@/contexts/auth-context";
 import { Issue } from "@/types";
@@ -138,8 +139,9 @@ export function AppSidebar() {
             Workspace
           </span>
         </div>
-        <div className="mt-3 group-data-[collapsible=icon]:hidden">
+        <div className="mt-3 space-y-2 group-data-[collapsible=icon]:hidden">
           <WorkspaceSwitcher className="w-full" />
+          <InviteWorkspaceDialog variant="sidebar" />
         </div>
       </SidebarHeader>
 
