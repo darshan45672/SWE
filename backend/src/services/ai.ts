@@ -99,14 +99,48 @@ class AIService {
         },
       });
 
-      // Fetch workspace members
+      // Fetch workspace members with comprehensive details
       const members = await prisma.workspaceMember.findMany({
         where: { workspaceId },
         include: {
           user: {
             select: {
+              id: true,
               name: true,
               email: true,
+              avatar: true,
+              bio: true,
+              phone: true,
+              location: true,
+              website: true,
+              company: true,
+              jobTitle: true,
+              emailVerified: true,
+              createdAt: true,
+              // Get all workspaces this user is a member of
+              workspaces: {
+                include: {
+                  workspace: {
+                    select: {
+                      id: true,
+                      name: true,
+                      description: true,
+                    },
+                  },
+                },
+                orderBy: { createdAt: 'desc' },
+              },
+              // Get comment and message counts
+              comments: {
+                select: {
+                  id: true,
+                },
+              },
+              messages: {
+                select: {
+                  id: true,
+                },
+              },
             },
           },
         },
@@ -148,8 +182,29 @@ class AIService {
           timestamp: m.createdAt.toISOString(),
         })),
         members: members.map((m) => ({
+          id: m.user.id,
           name: m.user.name,
+          email: m.user.email,
+          avatar: m.user.avatar,
+          bio: m.user.bio,
+          phone: m.user.phone,
+          location: m.user.location,
+          website: m.user.website,
+          company: m.user.company,
+          jobTitle: m.user.jobTitle,
           role: m.role,
+          emailVerified: m.user.emailVerified,
+          joinedAt: m.createdAt.toISOString(),
+          accountCreated: m.user.createdAt.toISOString(),
+          allWorkspaces: m.user.workspaces.map((ws) => ({
+            workspaceId: ws.workspace.id,
+            workspaceName: ws.workspace.name,
+            workspaceDescription: ws.workspace.description,
+            role: ws.role,
+            joinedAt: ws.createdAt.toISOString(),
+          })),
+          commentsCount: m.user.comments.length,
+          messagesCount: m.user.messages.length,
         })),
       };
     } catch (error) {
@@ -402,18 +457,45 @@ class AIService {
 ${recentIssues.issues.map((issue: any, idx: number) => `${idx + 1}. [${issue.status}] ${issue.title} (Priority: ${issue.priority}, Type: ${issue.type})`).join('\n')}
 
 **Team Members (${projectContext?.members?.length || 0}):**
-${projectContext?.members?.map((m: any) => `- ${m.name} (${m.role})`).join('\n') || 'No members listed'}
+${projectContext?.members?.map((m: any) => {
+  const workspaces = m.allWorkspaces.map((ws: any) => `${ws.workspaceName} (${ws.role})`).join(', ');
+  return `
+**${m.name}** - ${m.role}
+- Email: ${m.email}
+- Job: ${m.jobTitle || 'Not specified'} at ${m.company || 'Not specified'}
+- Location: ${m.location || 'Not specified'}
+- Phone: ${m.phone || 'Not specified'}
+- Bio: ${m.bio || 'Not specified'}
+- Email Verified: ${m.emailVerified ? 'Yes' : 'No'}
+- Activity: ${m.commentsCount} comments, ${m.messagesCount} messages
+- Workspaces: ${workspaces || 'Only this workspace'}
+- Joined: ${new Date(m.joinedAt).toLocaleDateString()}
+`;
+}).join('\n') || 'No members listed'}
 
 **Recent Chat History (Last 30 messages):**
 ${chatHistory.messages.map((msg: any) => `${msg.senderName}: ${msg.content}`).join('\n')}
 
 **Your Guidelines:**
-1. Answer questions directly using the context provided above
-2. Be concise, helpful, and accurate
-3. When summarizing, focus on key insights
-4. Use markdown formatting for better readability
-5. If asked about specific data not in the context, politely mention the limitations
-6. Reference actual numbers and names from the data
+1. **Be Natural & Conversational**: Write responses as natural flowing text, like you're having a conversation
+2. **Use Proper Formatting**:
+   - Start each new piece of information on a NEW LINE
+   - Use **bold** for names and important details
+   - Use blank lines to separate different sections
+   - Only use bullet points (-) when listing multiple items
+   - NEVER put multiple pieces of info on the same line with pipes (|)
+3. **For Member Lists**: When asked "who are the members":
+   - Format: "The team members are: **Name** (Role) and **Name** (Role)."
+   - Keep it simple and clean
+4. **For User Details**: When asked about a specific person:
+   - Start with the person's name and role in one sentence
+   - Then add key details on separate lines with clear labels
+   - Example: Email: address, Job: title, Location: place
+   - Use proper line breaks between each detail
+5. **For Summaries**: When asked to summarize:
+   - Write 2-3 clear sentences
+   - Focus on main topics and key points
+   - Don't list every single message
 
 **User Question:**
 User "${userName}" is asking: ${message}

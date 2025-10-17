@@ -345,7 +345,7 @@ export function registerMCPTools(mcpServer: McpServer) {
     'getWorkspaceMembers',
     {
       title: 'Get Workspace Members',
-      description: 'Get list of members in a workspace with their roles',
+      description: 'Get comprehensive information about members in a workspace including their roles, profile details, comments, messages, and all workspaces they belong to',
       inputSchema: {
         workspaceId: z.string().describe('The ID of the workspace'),
       },
@@ -355,8 +355,26 @@ export function registerMCPTools(mcpServer: McpServer) {
             id: z.string(),
             name: z.string(),
             email: z.string(),
+            avatar: z.string().optional(),
+            bio: z.string().optional(),
+            phone: z.string().optional(),
+            location: z.string().optional(),
+            website: z.string().optional(),
+            company: z.string().optional(),
+            jobTitle: z.string().optional(),
             role: z.string(),
             joinedAt: z.string(),
+            emailVerified: z.boolean(),
+            allWorkspaces: z.array(
+              z.object({
+                workspaceId: z.string(),
+                workspaceName: z.string(),
+                role: z.string(),
+                joinedAt: z.string(),
+              })
+            ),
+            commentsCount: z.number(),
+            messagesCount: z.number(),
           })
         ),
       },
@@ -371,6 +389,40 @@ export function registerMCPTools(mcpServer: McpServer) {
                 id: true,
                 name: true,
                 email: true,
+                avatar: true,
+                bio: true,
+                phone: true,
+                location: true,
+                website: true,
+                company: true,
+                jobTitle: true,
+                emailVerified: true,
+                createdAt: true,
+                // Get all workspaces this user is a member of
+                workspaces: {
+                  include: {
+                    workspace: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                      },
+                    },
+                  },
+                  orderBy: { createdAt: 'desc' },
+                },
+                // Get comment count
+                comments: {
+                  select: {
+                    id: true,
+                  },
+                },
+                // Get message count  
+                messages: {
+                  select: {
+                    id: true,
+                  },
+                },
               },
             },
           },
@@ -382,8 +434,24 @@ export function registerMCPTools(mcpServer: McpServer) {
             id: member.user.id,
             name: member.user.name,
             email: member.user.email,
+            avatar: member.user.avatar || undefined,
+            bio: member.user.bio || undefined,
+            phone: member.user.phone || undefined,
+            location: member.user.location || undefined,
+            website: member.user.website || undefined,
+            company: member.user.company || undefined,
+            jobTitle: member.user.jobTitle || undefined,
             role: member.role,
             joinedAt: member.createdAt.toISOString(),
+            emailVerified: member.user.emailVerified,
+            allWorkspaces: member.user.workspaces.map((membership) => ({
+              workspaceId: membership.workspace.id,
+              workspaceName: membership.workspace.name,
+              role: membership.role,
+              joinedAt: membership.createdAt.toISOString(),
+            })),
+            commentsCount: member.user.comments.length,
+            messagesCount: member.user.messages.length,
           })),
         };
 
@@ -394,6 +462,141 @@ export function registerMCPTools(mcpServer: McpServer) {
       } catch (error) {
         return {
           content: [{ type: 'text', text: `Error fetching members: ${error}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Tool: Get detailed user information
+  mcpServer.registerTool(
+    'getUserDetails',
+    {
+      title: 'Get User Details',
+      description: 'Get comprehensive information about a specific user including their profile, workspaces, projects, and activity',
+      inputSchema: {
+        userId: z.string().describe('The ID of the user'),
+      },
+      outputSchema: {
+        id: z.string(),
+        name: z.string(),
+        email: z.string(),
+        avatar: z.string().optional(),
+        bio: z.string().optional(),
+        phone: z.string().optional(),
+        location: z.string().optional(),
+        website: z.string().optional(),
+        timezone: z.string().optional(),
+        language: z.string().optional(),
+        company: z.string().optional(),
+        jobTitle: z.string().optional(),
+        emailVerified: z.boolean(),
+        twoFactorEnabled: z.boolean(),
+        createdAt: z.string(),
+        workspaces: z.array(
+          z.object({
+            workspaceId: z.string(),
+            workspaceName: z.string(),
+            workspaceDescription: z.string().optional(),
+            role: z.string(),
+            joinedAt: z.string(),
+            projectsInWorkspace: z.array(
+              z.object({
+                projectId: z.string(),
+                projectName: z.string(),
+                projectDescription: z.string().optional(),
+              })
+            ),
+          })
+        ),
+        totalComments: z.number(),
+        totalMessages: z.number(),
+        totalNotifications: z.number(),
+      },
+    },
+    async ({ userId }) => {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            workspaces: {
+              include: {
+                workspace: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    projects: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                      },
+                    },
+                  },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+            comments: {
+              select: { id: true },
+            },
+            messages: {
+              select: { id: true },
+            },
+            sentNotifications: {
+              select: { id: true },
+            },
+          },
+        });
+
+        if (!user) {
+          return {
+            content: [{ type: 'text', text: 'User not found' }],
+            isError: true,
+          };
+        }
+
+        const output = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar || undefined,
+          bio: user.bio || undefined,
+          phone: user.phone || undefined,
+          location: user.location || undefined,
+          website: user.website || undefined,
+          timezone: user.timezone || undefined,
+          language: user.language || undefined,
+          company: user.company || undefined,
+          jobTitle: user.jobTitle || undefined,
+          emailVerified: user.emailVerified,
+          twoFactorEnabled: user.twoFactorEnabled,
+          createdAt: user.createdAt.toISOString(),
+          workspaces: user.workspaces.map((membership) => ({
+            workspaceId: membership.workspace.id,
+            workspaceName: membership.workspace.name,
+            workspaceDescription: membership.workspace.description || undefined,
+            role: membership.role,
+            joinedAt: membership.createdAt.toISOString(),
+            projectsInWorkspace: membership.workspace.projects.map((project) => ({
+              projectId: project.id,
+              projectName: project.name,
+              projectDescription: project.description || undefined,
+            })),
+          })),
+          totalComments: user.comments.length,
+          totalMessages: user.messages.length,
+          totalNotifications: user.sentNotifications.length,
+        };
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error fetching user: ${error}` }],
           isError: true,
         };
       }
