@@ -12,6 +12,7 @@ import {
   UserCircle,
   Settings,
   Loader,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -143,6 +144,37 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
+        {/* Main Navigation */}
+        <SidebarGroup className="py-2">
+          <SidebarGroupLabel className="px-2 text-xs font-semibold text-sidebar-foreground/70">
+            Navigation
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="group-data-[collapsible=icon]:hidden">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <div
+                  className="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => router.push("/")}
+                >
+                  <FolderKanban className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">Board</span>
+                </div>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <div
+                  className="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => router.push("/dashboard")}
+                >
+                  <BarChart3 className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">Dashboard</span>
+                </div>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
         {/* Projects Section */}
         <SidebarGroup className="py-2">
           <SidebarGroupLabel className="px-2 text-xs font-semibold text-sidebar-foreground/70">
