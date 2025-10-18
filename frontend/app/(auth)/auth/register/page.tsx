@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2, Check, X, AlertCircle, User, Mail, Phone, MapPin, Building, Briefcase, Clock, Globe2, Shield, Settings } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check, X, AlertCircle, User, Mail, Phone, MapPin, Building, Briefcase, Clock, Globe2, Shield, Settings, CheckCircle2 } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { RegisterFormData } from "@/types/auth";
 import { validatePassword } from "@/lib/auth-utils";
@@ -55,6 +63,9 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string>("");
+  const [countdown, setCountdown] = useState(5);
 
   // Form state management using Context7 patterns
   const form = useForm<RegisterFormData>({
@@ -81,6 +92,24 @@ export default function RegisterPage() {
   const confirmPassword = form.watch("confirmPassword");
   const passwordValidation = validatePassword(password || "");
 
+  // Context7 pattern: Auto-redirect countdown timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (showVerificationDialog && countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+    } else if (showVerificationDialog && countdown === 0) {
+      // Automatically redirect when countdown reaches 0
+      router.push("/auth/signin");
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showVerificationDialog, countdown, router]);
+
   // Form submission using Context7 patterns
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
@@ -98,8 +127,11 @@ export default function RegisterPage() {
       const result = await register(data);
 
       if (result.success) {
-        console.log("✅ Registration successful, redirecting to home");
-        router.push("/");
+        console.log("✅ Registration successful, showing verification dialog");
+        // Context7 pattern: Store email and show verification dialog instead of immediate redirect
+        setRegisteredEmail(data.email);
+        setCountdown(5); // Reset countdown
+        setShowVerificationDialog(true);
       } else {
         setApiError(result.message || "Registration failed. Please try again.");
       }
@@ -109,6 +141,14 @@ export default function RegisterPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Context7 pattern: Handle verification dialog confirmation
+  const handleVerificationDialogClose = () => {
+    setShowVerificationDialog(false);
+    setCountdown(5); // Reset countdown
+    // Redirect to sign in page immediately when user clicks button
+    router.push("/auth/signin");
   };
 
   return (
@@ -641,6 +681,57 @@ export default function RegisterPage() {
             </div>
           </form>
         </Form>
+
+        {/* Email Verification Dialog - Context7 pattern */}
+        <Dialog open={showVerificationDialog} onOpenChange={setShowVerificationDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
+                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <DialogTitle className="text-center text-xl">
+                Account Created Successfully!
+              </DialogTitle>
+              <DialogDescription className="text-center">
+                A verification link has been sent to your email address.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Verification email sent to:
+                </p>
+                <p className="font-semibold text-foreground">
+                  {registeredEmail}
+                </p>
+              </div>
+              
+              <p className="text-sm text-center text-muted-foreground">
+                Please check your email and click the verification link to activate your account before signing in.
+              </p>
+              
+              <div className="rounded-lg bg-muted p-3">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Note:</strong> If you don't see the email, please check your spam folder. The verification link will expire in 24 hours.
+                </p>
+              </div>
+            </div>
+            
+            <DialogFooter className="flex flex-col items-center gap-3">
+              <Button
+                onClick={handleVerificationDialogClose}
+                className="w-full sm:w-auto"
+                size="lg"
+              >
+                Go to Sign In
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Redirecting automatically in {countdown} second{countdown !== 1 ? 's' : ''}...
+              </p>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AuthLayout>
   );
