@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import { Calendar as CalendarIcon, X, Check, ChevronsUpDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,13 +37,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { Issue } from "@/types";
+import { Issue, User } from "@/types";
 
 const issueFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(100),
@@ -53,6 +62,7 @@ const issueFormSchema = z.object({
   status: z.enum(["todo", "in-progress", "done"] as const),
   dueDate: z.date().optional(),
   tags: z.array(z.string()),
+  assigneeId: z.string().optional(),
 });
 
 type IssueFormValues = z.infer<typeof issueFormSchema>;
@@ -70,7 +80,8 @@ export function EditIssueDialog({
 }: EditIssueDialogProps) {
   const [currentTag, setCurrentTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { updateIssueApi } = useWorkspace();
+  const [workspaceMembers, setWorkspaceMembers] = useState<User[]>([]);
+  const { updateIssueApi, currentWorkspace } = useWorkspace();
 
   const form = useForm<IssueFormValues>({
     resolver: zodResolver(issueFormSchema),
@@ -82,8 +93,36 @@ export function EditIssueDialog({
       status: "todo",
       dueDate: undefined,
       tags: [],
+      assigneeId: undefined,
     },
   });
+
+  // Fetch workspace members when dialog opens
+  useEffect(() => {
+    const fetchWorkspaceMembers = async () => {
+      if (open && currentWorkspace) {
+        try {
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+          const url = `${API_BASE_URL}/api/v1/workspaces/${currentWorkspace.id}/members`;
+          
+          const response = await fetch(url, {
+            credentials: 'include',
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setWorkspaceMembers(data.data || []);
+          } else {
+            console.error('Failed to fetch workspace members');
+          }
+        } catch (error) {
+          console.error('Failed to fetch workspace members:', error);
+        }
+      }
+    };
+
+    fetchWorkspaceMembers();
+  }, [open, currentWorkspace]);
 
   // Reset form when issue changes or dialog opens
   useEffect(() => {
@@ -96,6 +135,7 @@ export function EditIssueDialog({
         status: issue.status,
         dueDate: issue.dueDate,
         tags: issue.tags,
+        assigneeId: issue.assigneeId,
       });
     }
   }, [issue, open, form]);
@@ -113,6 +153,7 @@ export function EditIssueDialog({
       status: data.status,
       dueDate: data.dueDate,
       tags: data.tags,
+      assigneeId: data.assigneeId,
     });
 
     setIsSubmitting(false);
@@ -320,6 +361,107 @@ export function EditIssueDialog({
                 )}
               />
             </div>
+
+            {/* Assignee */}
+            <FormField
+              control={form.control}
+              name="assigneeId"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Assignee</FormLabel>
+                  <FormDescription>
+                    Assign this issue to
+                  </FormDescription>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            <div className="flex items-center gap-2">
+                              {(() => {
+                                const selectedMember = workspaceMembers.find(
+                                  (member) => member.id === field.value
+                                );
+                                if (!selectedMember) return "Select assignee...";
+                                
+                                return (
+                                  <>
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarImage src={selectedMember.avatar || undefined} />
+                                      <AvatarFallback className="text-xs">
+                                        {selectedMember.name
+                                          ?.split(" ")
+                                          .map((n) => n[0])
+                                          .join("")
+                                          .toUpperCase()
+                                          .slice(0, 2) || "?"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{selectedMember.name}</span>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          ) : (
+                            "Select assignee..."
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search users..." />
+                        <CommandList>
+                          <CommandEmpty>No user found.</CommandEmpty>
+                          <CommandGroup>
+                            {workspaceMembers.map((member) => (
+                              <CommandItem
+                                key={member.id}
+                                value={member.name}
+                                onSelect={() => {
+                                  field.onChange(member.id);
+                                }}
+                                className="flex items-center gap-2"
+                              >
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={member.avatar || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {member.name
+                                      ?.split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .toUpperCase()
+                                      .slice(0, 2) || "?"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{member.name}</span>
+                                <Check
+                                  className={cn(
+                                    "ml-auto h-4 w-4",
+                                    field.value === member.id
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Tags */}
             <FormField

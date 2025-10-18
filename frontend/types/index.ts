@@ -28,6 +28,10 @@ export interface Issue {
   priority: Priority;
   type: IssueType;
   assignee?: User;
+  assigneeId?: string;
+  assigner?: User;
+  assignedBy?: string;
+  assignedAt?: Date;
   reporter?: User;
   createdAt: Date;
   updatedAt: Date;

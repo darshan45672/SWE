@@ -1,5 +1,6 @@
-import prisma from '../lib/prisma';
+    import prisma from '../lib/prisma';
 import { NotificationType } from '@prisma/client';
+import { getIO } from '../socket';
 
 // Types for Notification service - Context7 pattern
 interface CreateNotificationData {
@@ -25,7 +26,33 @@ export const createNotification = async (data: CreateNotificationData) => {
       link: data.link,
       read: false,
     },
+    include: {
+      actor: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+        },
+      },
+      issue: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+        },
+      },
+    },
   });
+
+  // Emit Socket.IO event to notify user in real-time
+  try {
+    const io = getIO();
+    io.to(data.recipientId).emit('notification', notification);
+    console.log(`📬 Notification sent to user ${data.recipientId}:`, notification.title);
+  } catch (error) {
+    console.error('Failed to emit notification event:', error);
+  }
 
   return notification;
 };

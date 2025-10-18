@@ -80,7 +80,7 @@ export const createIssue = async (req: Request, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, status, priority, type, projectId, dueDate, tags } = req.body;
+    const { title, description, status, priority, type, projectId, dueDate, tags, assigneeId } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -88,10 +88,10 @@ export const createIssue = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    console.log('Creating issue with data:', { title, description, status, priority, type, projectId, dueDate, tags, userId });
+    console.log('Creating issue with data:', { title, description, status, priority, type, projectId, dueDate, tags, assigneeId, userId });
 
     const issue = await issueService.createIssue(
-      { title, description, status, priority, type, projectId, dueDate, tags },
+      { title, description, status, priority, type, projectId, dueDate, tags, assigneeId },
       userId
     );
 
@@ -127,7 +127,7 @@ export const updateIssue = async (req: Request, res: Response) => {
     }
 
     const { id } = req.params;
-    const { title, description, status, priority, type, dueDate, tags } = req.body;
+    const { title, description, status, priority, type, dueDate, tags, assigneeId } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -136,7 +136,7 @@ export const updateIssue = async (req: Request, res: Response) => {
 
     const issue = await issueService.updateIssue(
       id,
-      { title, description, status, priority, type, dueDate, tags },
+      { title, description, status, priority, type, dueDate, tags, assigneeId },
       userId
     );
 
@@ -190,6 +190,87 @@ export const deleteIssue = async (req: Request, res: Response) => {
       }
       if (error.message === 'Access denied') {
         return res.status(403).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Assign issue to workspace member - Context7 pattern
+export const assignIssue = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { assigneeId } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    if (!assigneeId) {
+      return res.status(400).json({ message: 'Assignee ID is required' });
+    }
+
+    const updatedIssue = await issueService.assignIssue(id, assigneeId, userId);
+    return res.json({
+      success: true,
+      message: 'Issue assigned successfully',
+      data: updatedIssue,
+    });
+  } catch (error) {
+    console.error('Assign issue error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Issue not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === 'Assignee is not a member of this workspace') {
+        return res.status(400).json({ message: error.message });
+      }
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Unassign issue - Context7 pattern
+export const unassignIssue = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const updatedIssue = await issueService.unassignIssue(id, userId);
+    return res.json({
+      success: true,
+      message: 'Issue unassigned successfully',
+      data: updatedIssue,
+    });
+  } catch (error) {
+    console.error('Unassign issue error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Issue not found') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Access denied') {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === 'Issue is not assigned to anyone') {
+        return res.status(400).json({ message: error.message });
       }
     }
     return res.status(500).json({ message: 'Internal server error' });

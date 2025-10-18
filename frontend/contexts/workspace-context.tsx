@@ -27,6 +27,7 @@ interface CreateIssueData {
   status: IssueStatus;
   dueDate?: Date;
   tags: string[];
+  assigneeId?: string;
 }
 
 interface WorkspaceContextType {
@@ -575,6 +576,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         projectId: currentProject.id,
         dueDate: issueData.dueDate,
         tags: issueData.tags,
+        assigneeId: issueData.assigneeId,
       };
       
       const response = await fetch(url, {
@@ -657,6 +659,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         ...(issueData.status && { status: toBackendStatus(issueData.status) }), // Convert to uppercase
         ...(issueData.dueDate !== undefined && { dueDate: issueData.dueDate }),
         ...(issueData.tags && { tags: issueData.tags }),
+        ...(issueData.assigneeId !== undefined && { assigneeId: issueData.assigneeId }),
       };
 
       const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/${issueId}`;

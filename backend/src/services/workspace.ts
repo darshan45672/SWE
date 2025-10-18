@@ -421,3 +421,58 @@ export const toggleWorkspaceActiveStatus = async (
     throw new Error('Failed to update workspace status');
   }
 };
+
+/**
+ * Get workspace members - Context7 pattern
+ * @param workspaceId - ID of the workspace
+ * @param userId - ID of the requesting user
+ * @returns List of workspace members with user details
+ */
+export const getWorkspaceMembers = async (
+  workspaceId: string,
+  userId: string
+) => {
+  try {
+    // Check if user is a member of the workspace
+    const membership = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: workspaceId,
+        userId: userId,
+      },
+    });
+
+    if (!membership) {
+      throw new Error('Access denied: You are not a member of this workspace');
+    }
+
+    // Get all workspace members with user details
+    const members = await prisma.workspaceMember.findMany({
+      where: {
+        workspaceId: workspaceId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            bio: true,
+            jobTitle: true,
+            company: true,
+          },
+        },
+      },
+    });
+
+    // Transform the data to return user details with role
+    return members.map((member) => ({
+      ...member.user,
+      role: member.role,
+      joinedAt: member.createdAt,
+    }));
+  } catch (error) {
+    console.error('Error getting workspace members:', error);
+    throw error;
+  }
+};

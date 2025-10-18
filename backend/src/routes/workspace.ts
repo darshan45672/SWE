@@ -87,4 +87,14 @@ router.put(
   workspaceController.toggleWorkspaceActive
 );
 
+/**
+ * @route   GET /api/workspaces/:id/members
+ * @desc    Get all members of a workspace
+ * @access  Private (workspace members only)
+ */
+router.get(
+  '/:id/members',
+  workspaceController.getWorkspaceMembers
+);
+
 export default router;

@@ -6,19 +6,14 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY tsconfig.json ./
-COPY prisma ./prisma/
 
 # Install dependencies (use npm install since no package-lock.json)
 RUN npm install
 
 # Copy source code
-COPY src ./src
+COPY . .
 
-# Generate Prisma Client
-RUN npx prisma generate
-
-# Build the application
+# Build the Next.js application
 RUN npm run build
 
 # Production stage
@@ -36,22 +31,28 @@ COPY package*.json ./
 # Install only production dependencies (use npm install since no package-lock.json)
 RUN npm install --production
 
-# Copy Prisma schema and generate client
-COPY prisma ./prisma/
-RUN npx prisma generate
-
 # Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/package.json ./package.json
 
-# Copy scripts if needed
-COPY scripts ./scripts
+# Create a non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Change ownership of the application files
+RUN chown -R nextjs:nodejs /app
+
+# Switch to non-root user
+USER nextjs
 
 # Expose the application port
-EXPOSE 3001
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
 CMD ["npm", "start"]

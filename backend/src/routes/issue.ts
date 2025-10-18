@@ -43,4 +43,18 @@ router.delete(
   issueController.deleteIssue
 );
 
+// POST /api/issues/:id/assign - Assign issue to workspace member
+router.post(
+  '/:id/assign',
+  issueValidation.getIssueValidation,
+  issueController.assignIssue
+);
+
+// POST /api/issues/:id/unassign - Unassign issue
+router.post(
+  '/:id/unassign',
+  issueValidation.getIssueValidation,
+  issueController.unassignIssue
+);
+
 export default router;

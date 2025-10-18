@@ -284,3 +284,36 @@ export const toggleWorkspaceActive = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Get workspace members - Context7 pattern
+ * GET /api/workspaces/:id/members
+ */
+export const getWorkspaceMembers = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const { id } = req.params;
+
+    // Get workspace members
+    const members = await workspaceService.getWorkspaceMembers(id, userId);
+
+    return res.status(200).json({
+      success: true,
+      data: members,
+    });
+  } catch (error) {
+    console.error('Get workspace members error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to get workspace members',
+    });
+  }
+};
