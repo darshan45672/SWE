@@ -17,19 +17,37 @@ import { IssueCard } from "./issue-card";
 import { Board, Issue, IssueStatus } from "@/types";
 import { useWorkspace } from "@/contexts/workspace-context";
 
+// Static board structure - 3 columns only (frontend uses lowercase)
+const STATIC_BOARD: Board = {
+  id: "static-board",
+  name: "Project Board",
+  columns: [
+    { id: "todo" as IssueStatus, title: "To Do", issues: [] },
+    { id: "in-progress" as IssueStatus, title: "In Progress", issues: [] },
+    { id: "done" as IssueStatus, title: "Done", issues: [] },
+  ],
+};
+
 export function KanbanBoard() {
-  const { currentProject, updateIssue } = useWorkspace();
-  const [board, setBoard] = useState<Board | null>(
-    currentProject?.board || null
-  );
+  const { currentProject, issues, updateIssueApi } = useWorkspace();
+  const [board, setBoard] = useState<Board>(STATIC_BOARD);
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
 
-  // Update board when project changes
+  // Create virtual board from issues grouped by status
   useEffect(() => {
-    if (currentProject?.board) {
-      setBoard(currentProject.board);
+    if (issues && issues.length > 0) {
+      const groupedBoard: Board = {
+        ...STATIC_BOARD,
+        columns: STATIC_BOARD.columns.map((col) => ({
+          ...col,
+          issues: issues.filter((issue) => issue.status === col.id),
+        })),
+      };
+      setBoard(groupedBoard);
+    } else {
+      setBoard(STATIC_BOARD);
     }
-  }, [currentProject]);
+  }, [issues]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -39,7 +57,7 @@ export function KanbanBoard() {
     })
   );
 
-  if (!board || !currentProject) {
+  if (!currentProject) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-muted-foreground">No project selected</p>
@@ -104,21 +122,38 @@ export function KanbanBoard() {
         });
       }
     } else {
-      // Moving to a different column
-      // Update the issue status in the context
-      updateIssue(activeIssue.id, {
-        status: destColumn.id as IssueStatus,
+      // Moving to a different column - update via API
+      const newStatus = destColumn.id as IssueStatus;
+      
+      // Call API to update issue status
+      updateIssueApi(activeIssue.id, {
+        status: newStatus,
         title: activeIssue.title,
         description: activeIssue.description,
         type: activeIssue.type,
         priority: activeIssue.priority,
-        assigneeId: activeIssue.assignee?.id,
         dueDate: activeIssue.dueDate,
         tags: activeIssue.tags,
       });
 
-      // Note: The board state will be updated via the useEffect
-      // that watches currentProject changes from the context
+      // Optimistically update UI
+        const newSourceIssues = sourceColumn.issues.filter(
+        (issue) => issue.id !== activeIssue.id
+      );
+      const newDestIssues = [...destColumn.issues, { ...activeIssue, status: newStatus }];
+
+      setBoard({
+        ...board,
+        columns: board.columns.map((col) => {
+          if (col.id === sourceColumn.id) {
+            return { ...col, issues: newSourceIssues };
+          }
+          if (col.id === destColumn.id) {
+            return { ...col, issues: newDestIssues };
+          }
+          return col;
+        }),
+      });
     }
   };
 

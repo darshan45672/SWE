@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String
+  password  String
+  avatar    String?
+  bio       String?
+  phone     String?
+  location  String?
+  website   String?
+  timezone  String?
+  language  String?  @default("en")
+  company   String?
+  jobTitle  String?
+  emailVerified Boolean @default(false)
+  verificationToken String?
+  verificationTokenExpiry DateTime?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret String?
+  twoFactorBackupCodes String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations - MongoDB style with ObjectId references
+  workspaces          WorkspaceMember[]
+  comments            Comment[]
+  messages            Message[]
+  sentNotifications   Notification[]    @relation("NotificationActor")
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  sentInvitations     WorkspaceInvitation[] @relation("SentInvitations")
+  assignedIssues      Issue[]           @relation("IssueAssignee")
+  issuesAssignedByMe  Issue[]           @relation("IssueAssigner")
+
+  @@map("users")
+}
+
+// Workspace model
+model Workspace {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  icon         String?
+  color        String?
+  isActive     Boolean  @default(true)
+  latestChoice Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  members   WorkspaceMember[]
+  projects  Project[]
+  invitations WorkspaceInvitation[] @relation("WorkspaceInvitations")
+
+  @@map("workspaces")
+}
+
+// Workspace membership with roles
+model WorkspaceMember {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  workspaceId String        @db.ObjectId
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("workspace_members")
+}
+
+// Workspace invitation model
+model WorkspaceInvitation {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String           @db.ObjectId
+  email       String
+  role        WorkspaceRole    @default(MEMBER)
+  token       String           @unique
+  invitedBy   String           @db.ObjectId
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], name: "WorkspaceInvitations")
+  inviter   User      @relation(fields: [invitedBy], references: [id], name: "SentInvitations")
+
+  @@map("workspace_invitations")
+}
+
+// Project model
+model Project {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  workspaceId  String   @db.ObjectId
+  isActive     Boolean  @default(true)
+  latestChoice Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  issues    Issue[]
+  messages  Message[]
+
+  @@map("projects")
+}
+
+// Issue model
+model Issue {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String      @default("")
+  status      IssueStatus @default(TODO)
+  priority    Priority    @default(MEDIUM)
+  type        IssueType   @default(TASK)
+  projectId   String      @db.ObjectId
+  assigneeId  String?     @db.ObjectId
+  assignedBy  String?     @db.ObjectId
+  assignedAt  DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  project       Project       @relation(fields: [projectId], references: [id])
+  assignee      User?         @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigner      User?         @relation("IssueAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+  comments      Comment[]
+  tags          IssueTag[]
+  notifications Notification[]
+
+  @@map("issues")
+}
+
+// Tag model
+model Tag {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  issues IssueTag[]
+
+  @@map("tags")
+}
+
+// Many-to-many relation between Issues and Tags (MongoDB doesn't support compound IDs)
+model IssueTag {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  issueId String @db.ObjectId
+  tagId   String @db.ObjectId
+
+  // Relations
+  issue Issue @relation(fields: [issueId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@map("issue_tags")
+}
+
+// Comment model
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  authorId  String   @db.ObjectId
+  issueId   String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author User  @relation(fields: [authorId], references: [id])
+  issue  Issue @relation(fields: [issueId], references: [id])
+
+  @@map("comments")
+}
+
+// Message model - Project-specific chat with AI support
+model Message {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  content         String
+  senderId        String   @db.ObjectId
+  projectId       String   @db.ObjectId
+  isAIMessage     Boolean  @default(false)
+  aiContext       Json?    // Stores context used for AI response generation
+  parentMessageId String?  @db.ObjectId // References the user message that triggered AI
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  sender  User    @relation(fields: [senderId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("messages")
+}
+
+// Notification model
+model Notification {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  type        NotificationType
+  title       String
+  message     String
+  actorId     String           @db.ObjectId
+  recipientId String           @db.ObjectId
+  issueId     String?          @db.ObjectId
+  link        String?
+  read        Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  actor     User   @relation("NotificationActor", fields: [actorId], references: [id])
+  recipient User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  issue     Issue? @relation(fields: [issueId], references: [id])
+
+  @@map("notifications")
+}
+
+// Enums
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum IssueType {
+  BUG
+  FEATURE
+  TASK
+  IMPROVEMENT
+}
+
+enum NotificationType {
+  ISSUE_CREATED
+  ISSUE_ASSIGNED
+  ISSUE_UPDATED
+  ISSUE_COMMENT
+  NEW_MESSAGE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}

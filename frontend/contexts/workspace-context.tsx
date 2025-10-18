@@ -1,17 +1,22 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Workspace, mockWorkspaces } from "@/types/workspace";
-import { Board, Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
-import { mockBoard, mockUsers } from "@/lib/mock-data";
+import { Issue, IssueStatus, Priority, IssueType, User, Notification, NotificationType } from "@/types";
+import { mockUsers } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/auth-context";
 
+// Simplified Project interface - no board model needed
 interface Project {
   id: string;
   name: string;
   key?: string;
   description?: string;
   workspaceId: string;
-  board: Board;
+  isActive?: boolean;
+  latestChoice?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface CreateIssueData {
@@ -20,26 +25,36 @@ interface CreateIssueData {
   type: IssueType;
   priority: Priority;
   status: IssueStatus;
-  assigneeId?: string;
   dueDate?: Date;
   tags: string[];
+  assigneeId?: string;
 }
 
 interface WorkspaceContextType {
-  currentWorkspace: Workspace;
+  currentWorkspace: Workspace | null;
   currentProject: Project | null;
   currentUser: User;
   workspaces: Workspace[];
   projects: Project[];
+  issues: Issue[];
   notifications: Notification[];
   unreadCount: number;
+  loading: boolean;
   switchWorkspace: (workspaceId: string) => void;
   switchProject: (projectId: string) => void;
-  addProject: (project: Omit<Project, "board">) => void;
+  addProject: (project: Project) => void;
   addWorkspace: (workspace: Workspace) => void;
-  addIssue: (issueData: CreateIssueData) => void;
-  updateIssue: (issueId: string, issueData: Partial<CreateIssueData>) => void;
-  deleteIssue: (issueId: string) => void;
+  createWorkspace: (workspaceData: { name: string; description?: string; icon?: string; color?: string }) => Promise<{ success: boolean; message?: string; data?: Workspace }>;
+  createProject: (projectData: { name: string; description?: string }) => Promise<{ success: boolean; message?: string; data?: any }>;
+  fetchWorkspaces: () => Promise<void>;
+  fetchProjects: (workspaceId: string) => Promise<void>;
+  fetchIssues: (projectId: string) => Promise<void>;
+  createIssue: (issueData: CreateIssueData) => Promise<{ success: boolean; message?: string; data?: Issue }>;
+  updateIssueApi: (issueId: string, issueData: Partial<CreateIssueData>) => Promise<{ success: boolean; message?: string; data?: Issue }>;
+  deleteIssueApi: (issueId: string) => Promise<{ success: boolean; message?: string }>;
+  createCommentApi: (issueId: string, content: string) => Promise<{ success: boolean; message?: string }>;
+  updateCommentApi: (commentId: string, content: string) => Promise<{ success: boolean; message?: string }>;
+  deleteCommentApi: (commentId: string) => Promise<{ success: boolean; message?: string }>;
   markNotificationAsRead: (notificationId: string) => void;
   markAllNotificationsAsRead: () => void;
   clearNotification: (notificationId: string) => void;
@@ -49,72 +64,415 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
   undefined
 );
 
-// Mock projects data - in a real app, this would come from an API
-const mockProjects: Project[] = [
-  {
-    id: "project-1",
-    name: "Main Project",
-    workspaceId: "workspace-1",
-    board: mockBoard,
-  },
-  {
-    id: "project-2",
-    name: "Mobile App",
-    workspaceId: "workspace-1",
-    board: {
-      ...mockBoard,
-      id: "board-2",
-      name: "Mobile App Board",
-    },
-  },
-  {
-    id: "project-3",
-    name: "Personal Tasks",
-    workspaceId: "workspace-2",
-    board: {
-      ...mockBoard,
-      id: "board-3",
-      name: "Personal Board",
-    },
-  },
-  {
-    id: "project-4",
-    name: "Team Sprint",
-    workspaceId: "workspace-3",
-    board: {
-      ...mockBoard,
-      id: "board-4",
-      name: "Team Alpha Board",
-    },
-  },
-  {
-    id: "project-5",
-    name: "Campaign Planning",
-    workspaceId: "workspace-4",
-    board: {
-      ...mockBoard,
-      id: "board-5",
-      name: "Marketing Board",
-    },
-  },
-];
+// Status conversion helpers - Frontend uses lowercase, Backend uses uppercase
+const toBackendStatus = (status: IssueStatus): string => {
+  const map: Record<IssueStatus, string> = {
+    'todo': 'TODO',
+    'in-progress': 'IN_PROGRESS',
+    'done': 'DONE',
+  };
+  return map[status];
+};
+
+const toFrontendStatus = (status: string): IssueStatus => {
+  const map: Record<string, IssueStatus> = {
+    'TODO': 'todo',
+    'IN_PROGRESS': 'in-progress',
+    'DONE': 'done',
+  };
+  return map[status] || 'todo';
+};
+
+// Priority conversion helpers - Frontend uses lowercase, Backend uses uppercase
+const toBackendPriority = (priority: Priority): string => {
+  return priority.toUpperCase();
+};
+
+const toFrontendPriority = (priority: string): Priority => {
+  return priority.toLowerCase() as Priority;
+};
+
+// Type conversion helpers - Frontend uses lowercase, Backend uses uppercase
+const toBackendType = (type: IssueType): string => {
+  return type.toUpperCase();
+};
+
+const toFrontendType = (type: string): IssueType => {
+  return type.toLowerCase() as IssueType;
+};
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(
-    mockWorkspaces[0]
-  );
-  const [currentProject, setCurrentProject] = useState<Project | null>(
-    mockProjects[0]
-  );
-  const [allProjects, setAllProjects] = useState<Project[]>(mockProjects);
-  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>(mockWorkspaces);
+  const { token, user: authUser } = useAuth();
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Current user (in a real app, this would come from auth)
-  const currentUser = mockUsers[0];
+  // Current user - use authenticated user or fallback to mock - Context7 pattern
+  const currentUser = authUser ? {
+    id: authUser.id,
+    name: authUser.name,
+    email: authUser.email,
+    avatar: authUser.avatar || authUser.name.slice(0, 2).toUpperCase(),
+  } : mockUsers[0];
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Fetch workspaces from API - Context7 pattern
+  const fetchWorkspaces = async () => {
+    if (!token) {
+      console.log('No token available, skipping workspace fetch');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('Fetching workspaces with token:', token ? 'Token present' : 'No token');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/workspaces`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch workspaces response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch workspaces failed:', response.status, errorText);
+        throw new Error(`Failed to fetch workspaces: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched workspaces:', data);
+      
+      if (data.success && data.data) {
+        setAllWorkspaces(data.data);
+        
+        // Set workspace with latestChoice=true as current, otherwise first workspace - Context7 pattern
+        if (!currentWorkspace && data.data.length > 0) {
+          const latestWorkspace = data.data.find((w: Workspace) => w.latestChoice === true);
+          setCurrentWorkspace(latestWorkspace || data.data[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching workspaces:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create new workspace - Context7 pattern
+  const createWorkspace = async (workspaceData: { name: string; description?: string; icon?: string; color?: string }): Promise<{ success: boolean; message?: string; data?: Workspace }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    console.log('Creating workspace with data:', workspaceData);
+    console.log('Using token:', token ? 'Token present' : 'No token');
+    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/workspaces`;
+      console.log('Sending POST request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workspaceData),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        const textResponse = await response.text();
+        console.error('Response text:', textResponse);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to create workspace',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Add to local state
+        setAllWorkspaces(prev => [...prev, data.data]);
+        setCurrentWorkspace(data.data);
+        
+        return {
+          success: true,
+          message: data.message,
+          data: data.data,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error creating workspace:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create workspace',
+      };
+    }
+  };
+
+  // Fetch projects for a workspace - Context7 pattern
+  const fetchProjects = async (workspaceId: string) => {
+    if (!token) {
+      console.log('No token available, skipping projects fetch');
+      return;
+    }
+
+    try {
+      console.log('Fetching projects for workspace:', workspaceId);
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects/workspace/${workspaceId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch projects response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch projects failed:', response.status, errorText);
+        throw new Error(`Failed to fetch projects: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched projects:', data);
+      
+      if (data.success && data.data) {
+        // Map API projects to local Project type (no boards) - Context7 pattern
+        const projects = data.data.map((project: any) => ({
+          id: project.id,
+          name: project.name,
+          key: project.key,
+          description: project.description || '',
+          workspaceId: project.workspaceId,
+          isActive: project.isActive,
+          latestChoice: project.latestChoice,
+          createdAt: project.createdAt ? new Date(project.createdAt) : undefined,
+          updatedAt: project.updatedAt ? new Date(project.updatedAt) : undefined,
+        }));
+        
+        setAllProjects(projects);
+        
+        // Set project with latestChoice=true as current, otherwise first project - Context7 pattern
+        if (!currentProject && projects.length > 0) {
+          const latestProject = projects.find((p: Project) => p.latestChoice === true);
+          setCurrentProject(latestProject || projects[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  // Create new project - Context7 pattern
+  const createProject = async (projectData: { name: string; description?: string }): Promise<{ success: boolean; message?: string; data?: any }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    if (!currentWorkspace) {
+      return { success: false, message: 'No workspace selected' };
+    }
+
+    console.log('Creating project with data:', projectData);
+    console.log('Using token:', token ? 'Token present' : 'No token');
+    console.log('Current workspace:', currentWorkspace.id);
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects`;
+      console.log('Sending POST request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...projectData,
+          workspaceId: currentWorkspace.id,
+        }),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        const textResponse = await response.text();
+        console.error('Response text:', textResponse);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to create project',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Add to local state (no board)
+        const project: Project = {
+          id: data.data.id,
+          name: data.data.name,
+          key: data.data.key,
+          description: data.data.description || '',
+          workspaceId: data.data.workspaceId,
+        };
+        
+        setAllProjects(prev => [...prev, project]);
+        setCurrentProject(project);
+        
+        return {
+          success: true,
+          message: data.message,
+          data: data.data,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error creating project:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create project',
+      };
+    }
+  };
+
+  // Fetch workspaces on mount and when token changes
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [token]);
+
+  // Fetch projects when current workspace changes
+  useEffect(() => {
+    if (currentWorkspace && token) {
+      fetchProjects(currentWorkspace.id);
+    }
+  }, [currentWorkspace?.id, token]);
+
+  // Fetch issues when current project changes
+  useEffect(() => {
+    if (currentProject && token) {
+      fetchIssues(currentProject.id);
+    }
+  }, [currentProject?.id, token]);
+
+  // Fetch notifications periodically when user is authenticated - Context7 pattern
+  useEffect(() => {
+    if (token) {
+      fetchNotifications();
+      
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(() => {
+        fetchNotifications();
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token]);
+
+  // Fetch issues for a project - Context7 pattern (Simplified - no boards)
+  const fetchIssues = async (projectId: string) => {
+    if (!token) {
+      console.log('No token available, skipping issues fetch');
+      return;
+    }
+
+    try {
+      console.log('Fetching issues for project:', projectId);
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/project/${projectId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch issues response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Fetch issues failed:', response.status, errorText);
+        throw new Error(`Failed to fetch issues: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched issues:', data);
+      
+      if (data.success && data.data) {
+        // Map issues (no assignee/reporter fields)
+        const mappedIssues = data.data.map((issue: any) => ({
+          ...issue,
+          status: toFrontendStatus(issue.status), // Convert uppercase to lowercase
+          priority: toFrontendPriority(issue.priority), // Convert uppercase to lowercase
+          type: toFrontendType(issue.type), // Convert uppercase to lowercase
+          createdAt: new Date(issue.createdAt),
+          updatedAt: new Date(issue.updatedAt),
+          dueDate: issue.dueDate ? new Date(issue.dueDate) : undefined,
+          tags: issue.tags ? issue.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
+          comments: issue.comments ? issue.comments.map((comment: any) => ({
+            id: comment.id,
+            content: comment.content,
+            authorId: comment.authorId,
+            issueId: comment.issueId,
+            createdAt: new Date(comment.createdAt),
+            updatedAt: new Date(comment.updatedAt),
+            author: comment.author ? {
+              id: comment.author.id,
+              name: comment.author.name,
+              email: comment.author.email,
+              avatar: comment.author.avatar,
+            } : null,
+          })) : [],
+        }));
+        
+        setIssues(mappedIssues);
+      }
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+    }
+  };
 
   // Helper function to create notification
   const createNotification = (
@@ -140,24 +498,57 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => [notification, ...prev]);
   };
 
-  const switchWorkspace = (workspaceId: string) => {
+  const switchWorkspace = async (workspaceId: string) => {
     const workspace = allWorkspaces.find((w) => w.id === workspaceId);
     if (workspace) {
       setCurrentWorkspace(workspace);
-      // Switch to the first project in the new workspace
-      const firstProjectInWorkspace = allProjects.find(
-        (p) => p.workspaceId === workspaceId
-      );
-      setCurrentProject(firstProjectInWorkspace || null);
+      
+      // Update latestChoice on backend - Context7 pattern
+      if (token) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/workspaces/${workspaceId}/set-latest`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (error) {
+          console.error('Error updating workspace latest choice:', error);
+        }
+      }
+      
+      // Switch to the latest choice project or first project in the new workspace
+      const projectsInWorkspace = allProjects.filter(p => p.workspaceId === workspaceId);
+      const latestProject = projectsInWorkspace.find(p => p.latestChoice === true);
+      const targetProject = latestProject || projectsInWorkspace[0];
+      
+      setCurrentProject(targetProject || null);
     }
   };
 
-  const switchProject = (projectId: string) => {
+  const switchProject = async (projectId: string) => {
     const project = allProjects.find((p) => p.id === projectId);
     if (project) {
       setCurrentProject(project);
+      
+      // Update latestChoice on backend - Context7 pattern
+      if (token) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects/${projectId}/set-latest`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (error) {
+          console.error('Error updating project latest choice:', error);
+        }
+      }
+      
       // Optionally switch workspace if project belongs to different workspace
-      if (project.workspaceId !== currentWorkspace.id) {
+      if (currentWorkspace && project.workspaceId !== currentWorkspace.id) {
         const workspace = allWorkspaces.find(
           (w) => w.id === project.workspaceId
         );
@@ -168,17 +559,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addProject = (newProject: Omit<Project, "board">) => {
-    const projectWithBoard: Project = {
-      ...newProject,
-      board: {
-        ...mockBoard,
-        id: `board-${Date.now()}`,
-        name: `${newProject.name} Board`,
-      },
-    };
-    setAllProjects([...allProjects, projectWithBoard]);
-    setCurrentProject(projectWithBoard);
+  const addProject = (newProject: Project) => {
+    setAllProjects([...allProjects, newProject]);
+    setCurrentProject(newProject);
   };
 
   const addWorkspace = (newWorkspace: Workspace) => {
@@ -187,217 +570,459 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentProject(null); // No projects in new workspace yet
   };
 
-  const addIssue = (issueData: CreateIssueData) => {
-    if (!currentProject) return;
-
-    // Find the assignee user object
-    const assignee = issueData.assigneeId
-      ? mockUsers.find((u) => u.id === issueData.assigneeId)
-      : undefined;
-
-    // Create the new issue
-    const newIssue: Issue = {
-      id: `issue-${Date.now()}`,
-      title: issueData.title,
-      description: issueData.description,
-      status: issueData.status,
-      priority: issueData.priority,
-      type: issueData.type,
-      assignee,
-      reporter: currentUser,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      dueDate: issueData.dueDate,
-      tags: issueData.tags,
-      comments: [],
-    };
-
-    // Update the current project's board
-    const updatedBoard: Board = {
-      ...currentProject.board,
-      columns: currentProject.board.columns.map((column) => {
-        if (column.id === issueData.status) {
-          return {
-            ...column,
-            issues: [...column.issues, newIssue],
-          };
-        }
-        return column;
-      }),
-    };
-
-    // Update the project with the new board
-    const updatedProject: Project = {
-      ...currentProject,
-      board: updatedBoard,
-    };
-
-    // Update the projects list
-    setAllProjects(
-      allProjects.map((p) =>
-        p.id === currentProject.id ? updatedProject : p
-      )
-    );
-
-    // Update the current project
-    setCurrentProject(updatedProject);
-
-    // Create notification if issue is assigned to someone
-    if (assignee && assignee.id !== currentUser.id) {
-      createNotification(
-        "issue_assigned",
-        "New Issue Assigned",
-        `${currentUser.name} assigned you to "${newIssue.title}"`,
-        newIssue,
-        currentUser,
-        assignee
-      );
+  // Create issue - Context7 pattern (Simplified - no boards)
+  const createIssue = async (issueData: CreateIssueData): Promise<{ success: boolean; message?: string; data?: Issue }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
     }
-  };
 
-  const updateIssue = (issueId: string, issueData: Partial<CreateIssueData>) => {
-    if (!currentProject) return;
+    if (!currentProject) {
+      return { success: false, message: 'No project selected' };
+    }
 
-    // Find the assignee user object if assigneeId is provided
-    const assignee = issueData.assigneeId
-      ? mockUsers.find((u) => u.id === issueData.assigneeId)
-      : undefined;
-
-    // Update the current project's board
-    const updatedBoard: Board = {
-      ...currentProject.board,
-      columns: currentProject.board.columns.map((column) => {
-        // Remove issue from old column if status changed
-        const issuesWithoutTarget = column.issues.filter(
-          (issue) => issue.id !== issueId
-        );
-
-        // Find the issue to update
-        const issueToUpdate = currentProject.board.columns
-          .flatMap((col) => col.issues)
-          .find((issue) => issue.id === issueId);
-
-        if (!issueToUpdate) return column;
-
-        // Create updated issue
-        const updatedIssue: Issue = {
-          ...issueToUpdate,
-          ...(issueData.title && { title: issueData.title }),
-          ...(issueData.description && { description: issueData.description }),
-          ...(issueData.type && { type: issueData.type }),
-          ...(issueData.priority && { priority: issueData.priority }),
-          ...(issueData.status && { status: issueData.status }),
-          ...(issueData.assigneeId !== undefined && { assignee }),
-          ...(issueData.dueDate !== undefined && { dueDate: issueData.dueDate }),
-          ...(issueData.tags && { tags: issueData.tags }),
-          updatedAt: new Date(),
-        };
-
-        // Add issue to new column if status matches
-        const targetStatus = issueData.status || issueToUpdate.status;
-        if (column.id === targetStatus) {
-          return {
-            ...column,
-            issues: [...issuesWithoutTarget, updatedIssue],
-          };
-        }
-
-        // Return column without the issue if it moved to another column
-        return {
-          ...column,
-          issues: issuesWithoutTarget,
-        };
-      }),
-    };
-
-    // Update the project with the new board
-    const updatedProject: Project = {
-      ...currentProject,
-      board: updatedBoard,
-    };
-
-    // Update the projects list
-    setAllProjects(
-      allProjects.map((p) =>
-        p.id === currentProject.id ? updatedProject : p
-      )
-    );
-
-    // Update the current project
-    setCurrentProject(updatedProject);
-
-    // Create notification if assignee changed and it's not the current user
-    if (issueData.assigneeId && assignee && assignee.id !== currentUser.id) {
-      const issueToUpdate = currentProject.board.columns
-        .flatMap((col) => col.issues)
-        .find((issue) => issue.id === issueId);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues`;
       
-      if (issueToUpdate && issueToUpdate.assignee?.id !== assignee.id) {
-        createNotification(
-          "issue_assigned",
-          "Issue Assigned to You",
-          `${currentUser.name} assigned you to "${issueToUpdate.title}"`,
-          issueToUpdate,
-          currentUser,
-          assignee
-        );
+      const requestBody = {
+        title: issueData.title,
+        description: issueData.description || '',
+        type: toBackendType(issueData.type), // Convert to uppercase
+        priority: toBackendPriority(issueData.priority), // Convert to uppercase
+        status: toBackendStatus(issueData.status), // Convert to uppercase
+        projectId: currentProject.id,
+        dueDate: issueData.dueDate,
+        tags: issueData.tags,
+        assigneeId: issueData.assigneeId,
+      };
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      let data;
+      try {
+        const responseText = await response.text();
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
       }
+
+      if (!response.ok) {
+        console.error('Failed to create issue:', data.message || data.errors?.[0]?.msg);
+        return {
+          success: false,
+          message: data.message || data.errors?.[0]?.msg || 'Failed to create issue',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Map issue (no assignee/reporter fields)
+        const newIssue: Issue = {
+          ...data.data,
+          status: toFrontendStatus(data.data.status), // Convert backend to frontend status
+          priority: toFrontendPriority(data.data.priority), // Convert backend to frontend priority
+          type: toFrontendType(data.data.type), // Convert backend to frontend type
+          createdAt: new Date(data.data.createdAt),
+          updatedAt: new Date(data.data.updatedAt),
+          dueDate: data.data.dueDate ? new Date(data.data.dueDate) : undefined,
+          tags: data.data.tags ? data.data.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
+          comments: [],
+        };
+
+        // Add to local state
+        setIssues(prev => [...prev, newIssue]);
+        
+        return {
+          success: true,
+          message: data.message,
+          data: newIssue,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error creating issue:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create issue',
+      };
     }
   };
 
-  const deleteIssue = (issueId: string) => {
-    if (!currentProject) return;
+  // Update issue - Context7 pattern (Simplified - no boards)
+  const updateIssueApi = async (issueId: string, issueData: Partial<CreateIssueData>): Promise<{ success: boolean; message?: string; data?: Issue }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
 
-    // Update the current project's board by removing the issue
-    const updatedBoard: Board = {
-      ...currentProject.board,
-      columns: currentProject.board.columns.map((column) => ({
-        ...column,
-        issues: column.issues.filter((issue) => issue.id !== issueId),
-      })),
-    };
+    console.log('Updating issue:', issueId, 'with data:', issueData);
 
-    // Update the project with the new board
-    const updatedProject: Project = {
-      ...currentProject,
-      board: updatedBoard,
-    };
+    try {
+      const updateData: any = {
+        ...(issueData.title && { title: issueData.title }),
+        ...(issueData.description !== undefined && { description: issueData.description }),
+        ...(issueData.type && { type: toBackendType(issueData.type) }), // Convert to uppercase
+        ...(issueData.priority && { priority: toBackendPriority(issueData.priority) }), // Convert to uppercase
+        ...(issueData.status && { status: toBackendStatus(issueData.status) }), // Convert to uppercase
+        ...(issueData.dueDate !== undefined && { dueDate: issueData.dueDate }),
+        ...(issueData.tags && { tags: issueData.tags }),
+        ...(issueData.assigneeId !== undefined && { assigneeId: issueData.assigneeId }),
+      };
 
-    // Update the projects list
-    setAllProjects(
-      allProjects.map((p) =>
-        p.id === currentProject.id ? updatedProject : p
-      )
-    );
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/${issueId}`;
+      console.log('Sending PUT request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
 
-    // Update the current project
-    setCurrentProject(updatedProject);
+      console.log('Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to update issue',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Map issue (no assignee/reporter fields)
+        const updatedIssue: Issue = {
+          ...data.data,
+          status: toFrontendStatus(data.data.status), // Convert backend to frontend status
+          priority: toFrontendPriority(data.data.priority), // Convert backend to frontend priority
+          type: toFrontendType(data.data.type), // Convert backend to frontend type
+          createdAt: new Date(data.data.createdAt),
+          updatedAt: new Date(data.data.updatedAt),
+          dueDate: data.data.dueDate ? new Date(data.data.dueDate) : undefined,
+          tags: data.data.tags ? data.data.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
+          comments: [],
+        };
+
+        // Update local state
+        setIssues(prev => prev.map(issue => 
+          issue.id === issueId ? updatedIssue : issue
+        ));
+        
+        return {
+          success: true,
+          message: data.message,
+          data: updatedIssue,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error updating issue:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to update issue',
+      };
+    }
+  };
+
+  // Delete issue - Context7 pattern (Simplified - no boards)
+  const deleteIssueApi = async (issueId: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    console.log('Deleting issue:', issueId);
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/issues/${issueId}`;
+      console.log('Sending DELETE request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Request failed with status:', response.status);
+        console.error('Error data:', data);
+        return {
+          success: false,
+          message: data.message || 'Failed to delete issue',
+        };
+      }
+
+      if (data.success) {
+        // Remove from local state
+        setIssues(prev => prev.filter(issue => issue.id !== issueId));
+        
+        return {
+          success: true,
+          message: data.message,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error deleting issue:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to delete issue',
+      };
+    }
   };
 
   // Get projects for current workspace
-  const projects = allProjects.filter(
-    (p) => p.workspaceId === currentWorkspace.id
-  );
+  const projects = currentWorkspace 
+    ? allProjects.filter((p) => p.workspaceId === currentWorkspace.id)
+    : [];
 
-  // Notification management functions
-  const markNotificationAsRead = (notificationId: string) => {
+  // Fetch notifications from API - Context7 pattern
+  const fetchNotifications = async () => {
+    if (!token) {
+      console.log('No token available, skipping notification fetch');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Fetch notifications failed:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        setNotifications(data.data.map((notification: any) => ({
+          id: notification.id,
+          type: notification.type.toLowerCase().replace(/_/g, '_') as NotificationType,
+          title: notification.title,
+          message: notification.message,
+          actor: notification.actor,
+          recipient: notification.recipient,
+          issue: notification.issue,
+          createdAt: new Date(notification.createdAt),
+          read: notification.read,
+          link: notification.link,
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Notification management functions - Context7 pattern
+  const markNotificationAsRead = async (notificationId: string) => {
+    if (!token) return;
+
+    // Optimistic update
     setNotifications(prev =>
       prev.map(notif =>
         notif.id === notificationId ? { ...notif, read: true } : notif
       )
     );
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Failed to mark notification as read:', response.status);
+        // Revert optimistic update
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // Revert optimistic update
+      fetchNotifications();
+    }
   };
 
-  const markAllNotificationsAsRead = () => {
+  const markAllNotificationsAsRead = async () => {
+    if (!token) return;
+
+    // Optimistic update
     setNotifications(prev =>
       prev.map(notif => ({ ...notif, read: true }))
     );
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/notifications/read-all`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Failed to mark all notifications as read:', response.status);
+        // Revert optimistic update
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      // Revert optimistic update
+      fetchNotifications();
+    }
   };
 
   const clearNotification = (notificationId: string) => {
     setNotifications(prev =>
       prev.filter(notif => notif.id !== notificationId)
     );
+  };
+
+  // Create comment - Context7 pattern
+  const createCommentApi = async (issueId: string, content: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/comments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ issueId, content }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Failed to create comment' };
+      }
+
+      // Refresh issues to get updated comments
+      if (currentProject) {
+        await fetchIssues(currentProject.id);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      return { success: false, message: 'An error occurred while creating the comment' };
+    }
+  };
+
+  // Update comment - Context7 pattern
+  const updateCommentApi = async (commentId: string, content: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/comments/${commentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Failed to update comment' };
+      }
+
+      // Refresh issues to get updated comments
+      if (currentProject) {
+        await fetchIssues(currentProject.id);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      return { success: false, message: 'An error occurred while updating the comment' };
+    }
+  };
+
+  // Delete comment - Context7 pattern
+  const deleteCommentApi = async (commentId: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Failed to delete comment' };
+      }
+
+      // Refresh issues to get updated comments
+      if (currentProject) {
+        await fetchIssues(currentProject.id);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      return { success: false, message: 'An error occurred while deleting the comment' };
+    }
   };
 
   return (
@@ -408,15 +1033,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         currentUser,
         workspaces: allWorkspaces,
         projects,
+        issues,
         notifications,
         unreadCount,
+        loading,
         switchWorkspace,
         switchProject,
         addProject,
         addWorkspace,
-        addIssue,
-        updateIssue,
-        deleteIssue,
+        createWorkspace,
+        createProject,
+        fetchWorkspaces,
+        fetchProjects,
+        fetchIssues,
+        createIssue,
+        updateIssueApi,
+        deleteIssueApi,
+        createCommentApi,
+        updateCommentApi,
+        deleteCommentApi,
         markNotificationAsRead,
         markAllNotificationsAsRead,
         clearNotification,

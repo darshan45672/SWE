@@ -4,11 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, MessageSquare, Eye, Pencil, Trash2 } from "lucide-react";
+import { Calendar, MessageSquare, Eye, Pencil, Trash2, User, Clock, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -181,30 +188,145 @@ export function IssueCard({ issue }: IssueCardProps) {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {issue.dueDate && (
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                <span>{formatDate(issue.dueDate)}</span>
+        <Separator className="my-2" />
+
+        {/* Metadata Section */}
+        <div className="space-y-2">
+          {/* Assignee and Assigner */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Assignee */}
+            {issue.assignee ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      <User className="h-3 w-3" />
+                      <span className="font-medium">Assigned to:</span>
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={issue.assignee.avatar || undefined} alt={issue.assignee.name} />
+                        <AvatarFallback className="text-[10px]">
+                          {issue.assignee.name
+                            ?.split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate max-w-[60px]">{issue.assignee.name}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Assigned to {issue.assignee.name}</p>
+                    <p className="text-xs text-muted-foreground">{issue.assignee.email}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <User className="h-3 w-3" />
+                <span className="font-medium">Assigned to:</span>
+                <span>Unassigned</span>
               </div>
             )}
-            {issue.comments.length > 0 && (
-              <div className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                <span>{issue.comments.length}</span>
-              </div>
+
+            {/* Assigner */}
+            {issue.assigner && issue.assignee && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      <UserPlus className="h-3 w-3" />
+                      <span className="font-medium">By:</span>
+                      <Avatar className="h-4 w-4">
+                        <AvatarImage src={issue.assigner.avatar || undefined} alt={issue.assigner.name} />
+                        <AvatarFallback className="text-[8px]">
+                          {issue.assigner.name
+                            ?.split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Assigned by {issue.assigner.name}</p>
+                    <p className="text-xs text-muted-foreground">{issue.assigner.email}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
 
-          {issue.assignee && (
-            <Avatar className="h-6 w-6 cursor-pointer">
-              <AvatarFallback className="text-xs">
-                {issue.assignee.avatar || issue.assignee.name.slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-          )}
+          {/* Dates and Comments Row */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-3">
+              {/* Due Date */}
+              {issue.dueDate && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors">
+                        <Calendar className="h-3 w-3" />
+                        <span className="font-medium">Due:</span>
+                        <span>{formatDate(issue.dueDate)}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Due date: {new Date(issue.dueDate).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Comments */}
+              {issue.comments.length > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors">
+                        <MessageSquare className="h-3 w-3" />
+                        <span>{issue.comments.length}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{issue.comments.length} comment{issue.comments.length !== 1 ? 's' : ''}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+
+            {/* Created Date */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors">
+                    <Clock className="h-3 w-3" />
+                    <span className="font-medium">Created:</span>
+                    <span>{formatDate(issue.createdAt)}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Created: {new Date(issue.createdAt).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </CardContent>
     </Card>

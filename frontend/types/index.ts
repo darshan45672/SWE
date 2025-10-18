@@ -8,6 +8,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  emailVerified?: boolean;
   avatar?: string;
   bio?: string;
   phone?: string;
@@ -27,7 +28,11 @@ export interface Issue {
   priority: Priority;
   type: IssueType;
   assignee?: User;
-  reporter: User;
+  assigneeId?: string;
+  assigner?: User;
+  assignedBy?: string;
+  assignedAt?: Date;
+  reporter?: User;
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date;

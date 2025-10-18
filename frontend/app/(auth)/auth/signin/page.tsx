@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TwoFactorVerificationDialog } from "@/components/auth/two-factor-verification-dialog";
 import { isValidEmail } from "@/lib/auth-utils";
+import { useAuth } from "@/contexts/auth-context";
 import type { SignInFormData } from "@/types/auth";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, requires2FA, verify2FA } = useAuth();
+  
+  // Context7 pattern: Get redirect URL from query params
+  const redirectTo = searchParams.get('from') || '/';
+  
   const [formData, setFormData] = useState<SignInFormData>({
     email: "",
     password: "",
@@ -23,6 +32,29 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<SignInFormData>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string>("");
+  const [twoFactorError, setTwoFactorError] = useState<string>("");
+  const [is2FALoading, setIs2FALoading] = useState(false);
+  const [showVerificationRequired, setShowVerificationRequired] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Context7 pattern: Show redirect message if user was redirected
+  const isRedirected = searchParams.get('from') !== null;
+  
+  useEffect(() => {
+    if (isRedirected) {
+      console.log('🔒 User redirected from protected route:', redirectTo);
+    }
+  }, [isRedirected, redirectTo]);
+
+  // Cooldown timer for resend verification
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const validate = (): boolean => {
     const newErrors: Partial<SignInFormData> = {};
@@ -47,20 +79,164 @@ export default function SignInPage() {
     if (!validate()) return;
 
     setIsLoading(true);
+    setApiError("");
+    setTwoFactorError("");
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      console.log('🔐 Attempting login with redirect to:', redirectTo);
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        // Check if message indicates 2FA is required
+        if (result.message === '2FA verification required') {
+          console.log('🔐 2FA verification required');
+          // 2FA dialog will be shown automatically via requires2FA state
+          // Don't redirect or show error
+        } else {
+          console.log('✅ Login successful, redirecting to:', redirectTo);
+          // Context7 pattern: Redirect to original destination or default
+          router.push(redirectTo);
+        }
+      } else {
+        // Check if email verification is required
+        if (result.requiresVerification && result.email) {
+          console.log('📧 Email verification required for:', result.email);
+          setUserEmail(result.email);
+          setShowVerificationRequired(true);
+          setApiError(""); // Clear any generic error
+        } else {
+          console.error('❌ Login failed:', result.message);
+          setApiError(result.message || 'Login failed. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setApiError("An unexpected error occurred. Please try again.");
+    } finally {
       setIsLoading(false);
-      router.push("/");
-    }, 1500);
+    }
+  };
+
+  const handle2FAVerify = async (code: string, isBackupCode: boolean) => {
+    setIs2FALoading(true);
+    setTwoFactorError("");
+
+    try {
+      const result = await verify2FA(code, isBackupCode);
+      
+      if (result.success) {
+        console.log('✅ 2FA verification successful, redirecting to:', redirectTo);
+        router.push(redirectTo);
+      } else {
+        setTwoFactorError(result.message || 'Invalid verification code. Please try again.');
+      }
+    } catch (error) {
+      console.error("2FA verification error:", error);
+      setTwoFactorError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIs2FALoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0 || !userEmail) return;
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/verification/resend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResendCooldown(60); // 60 second cooldown
+        console.log('✅ Verification email resent successfully');
+      } else {
+        console.error('❌ Failed to resend verification:', data.message);
+      }
+    } catch (error) {
+      console.error('Resend verification error:', error);
+    }
   };
 
   return (
-    <AuthLayout
-      title="Welcome back"
-      description="Enter your credentials to access your account"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <TwoFactorVerificationDialog
+        open={requires2FA}
+        onVerify={handle2FAVerify}
+        loading={is2FALoading}
+        error={twoFactorError}
+      />
+      
+      <AuthLayout
+        title="Welcome back"
+        description="Enter your credentials to access your account"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Context7 pattern: Show redirect notification */}
+        {isRedirected && (
+          <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200">
+              Please sign in to access the requested page.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Email Verification Required Alert */}
+        {showVerificationRequired && userEmail && (
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200">
+              <div className="space-y-3">
+                <p className="font-medium">Email Verification Required</p>
+                <p className="text-sm">
+                  Please verify your email address (<strong>{userEmail}</strong>) to continue. 
+                  Check your inbox for the verification link.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResendVerification}
+                    disabled={resendCooldown > 0}
+                    className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                  >
+                    {resendCooldown > 0 ? (
+                      <>Resend in {resendCooldown}s</>
+                    ) : (
+                      <>Resend Verification Link</>
+                    )}
+                  </Button>
+                  <Link href="/auth/verify-email">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                    >
+                      Go to Verification Page
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* API Error Alert */}
+        {apiError && (
+          <Alert variant="destructive" className="border-destructive/20">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{apiError}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Email */}
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -203,5 +379,20 @@ export default function SignInPage() {
         </p>
       </form>
     </AuthLayout>
+    </>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <AuthLayout title="Welcome back" description="Loading...">
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AuthLayout>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

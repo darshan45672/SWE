@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,12 +25,21 @@ export function DeleteIssueAlert({
   open,
   onOpenChange,
 }: DeleteIssueAlertProps) {
-  const { deleteIssue } = useWorkspace();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { deleteIssueApi } = useWorkspace();
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (issue) {
-      deleteIssue(issue.id);
-      onOpenChange(false);
+      setIsDeleting(true);
+      const result = await deleteIssueApi(issue.id);
+      setIsDeleting(false);
+      
+      if (result.success) {
+        onOpenChange(false);
+      } else {
+        console.error('Failed to delete issue:', result.message);
+        // TODO: Show error toast/notification
+      }
     }
   };
 
@@ -47,12 +57,13 @@ export function DeleteIssueAlert({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
+            disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Delete Issue
+            {isDeleting ? "Deleting..." : "Delete Issue"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

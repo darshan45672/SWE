@@ -32,15 +32,10 @@ const formSchema = z.object({
   name: z
     .string()
     .min(2, "Project name must be at least 2 characters")
-    .max(50, "Project name must be at most 50 characters"),
-  key: z
-    .string()
-    .min(2, "Project key must be at least 2 characters")
-    .max(10, "Project key must be at most 10 characters")
-    .regex(/^[A-Z0-9]+$/, "Project key must be uppercase letters and numbers only"),
+    .max(100, "Project name must be at most 100 characters"),
   description: z
     .string()
-    .max(200, "Description must be at most 200 characters")
+    .max(500, "Description must be at most 500 characters")
     .optional(),
 });
 
@@ -53,50 +48,44 @@ interface CreateProjectDialogProps {
 export function CreateProjectDialog({ variant = "sidebar" }: CreateProjectDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { currentWorkspace, addProject } = useWorkspace();
+  const [error, setError] = useState<string | null>(null);
+  const { currentWorkspace, createProject } = useWorkspace();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      key: "",
       description: "",
     },
   });
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
+    setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      // Add project to context
-      addProject({
-        id: `${Date.now()}`,
+    try {
+      console.log('Submitting project:', values);
+      
+      const result = await createProject({
         name: values.name,
-        key: values.key,
-        description: values.description || "",
-        workspaceId: currentWorkspace?.id || "1",
+        description: values.description,
       });
 
-      // Reset form and close dialog
-      form.reset();
-      setIsLoading(false);
-      setOpen(false);
-    }, 1000);
-  };
+      console.log('Create project result:', result);
 
-  // Auto-generate key from name
-  const handleNameChange = (value: string) => {
-    // Only auto-fill key if it's empty
-    if (!form.getValues("key")) {
-      const generatedKey = value
-        .toUpperCase()
-        .replace(/[^A-Z0-9\s]/g, "")
-        .split(" ")
-        .map((word) => word.charAt(0))
-        .join("")
-        .slice(0, 10);
-      form.setValue("key", generatedKey);
+      if (result.success) {
+        // Reset form and close dialog on success
+        form.reset();
+        setOpen(false);
+      } else {
+        // Show error message
+        setError(result.message || 'Failed to create project');
+      }
+    } catch (err) {
+      console.error('Error creating project:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create project');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -129,6 +118,13 @@ export function CreateProjectDialog({ variant = "sidebar" }: CreateProjectDialog
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Error Message */}
+            {error && (
+              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
             {/* Project Name */}
             <FormField
               control={form.control}
@@ -140,41 +136,11 @@ export function CreateProjectDialog({ variant = "sidebar" }: CreateProjectDialog
                     <Input
                       placeholder="My Awesome Project"
                       {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        handleNameChange(e.target.value);
-                      }}
                       disabled={isLoading}
                     />
                   </FormControl>
                   <FormDescription>
                     The name of your project. This will be visible to all team members.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Project Key */}
-            <FormField
-              control={form.control}
-              name="key"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Project Key *</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="MAP"
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                        field.onChange(value);
-                      }}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    A unique identifier for your project (e.g., MAP for My Awesome Project).
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
