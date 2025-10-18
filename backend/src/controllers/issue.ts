@@ -183,16 +183,34 @@ export const deleteIssue = async (req: Request, res: Response) => {
       message: result.message,
     });
   } catch (error) {
-    console.error('Delete issue error:', error);
+    console.error('❌ Delete issue controller error:', error);
     if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
       if (error.message === 'Issue not found') {
-        return res.status(404).json({ message: error.message });
+        return res.status(404).json({ 
+          success: false,
+          message: error.message 
+        });
       }
       if (error.message === 'Access denied') {
-        return res.status(403).json({ message: error.message });
+        return res.status(403).json({ 
+          success: false,
+          message: error.message 
+        });
+      }
+      if (error.message.includes('Failed to delete issue')) {
+        return res.status(500).json({ 
+          success: false,
+          message: error.message 
+        });
       }
     }
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Internal server error' 
+    });
   }
 };
 

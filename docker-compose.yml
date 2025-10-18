@@ -50,7 +50,7 @@ services:
         condition: service_healthy
     networks:
       - swe-network
-    command: sh -c "npx prisma generate && npm start"
+    command: sh -c "npx prisma generate && npx prisma db push && npm start"
 
   # Frontend Next.js Service
   frontend:
