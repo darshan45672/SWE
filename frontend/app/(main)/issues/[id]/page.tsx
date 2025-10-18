@@ -79,7 +79,7 @@ export default function IssueDetailsPage() {
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date(date));
-    } catch (error) {
+    } catch {
       return "Invalid date";
     }
   };
@@ -92,7 +92,7 @@ export default function IssueDetailsPage() {
         day: "numeric",
         year: "numeric",
       }).format(new Date(date));
-    } catch (error) {
+    } catch {
       return "Invalid date";
     }
   };
@@ -105,7 +105,7 @@ export default function IssueDetailsPage() {
       const diffTime = due.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays;
-    } catch (error) {
+    } catch {
       return 0;
     }
   };

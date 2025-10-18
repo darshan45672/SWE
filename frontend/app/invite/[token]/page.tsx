@@ -141,7 +141,7 @@ export default function InvitePage() {
       }
 
       router.push("/");
-    } catch (err) {
+    } catch {
       setError("An error occurred while declining the invitation");
     }
   };

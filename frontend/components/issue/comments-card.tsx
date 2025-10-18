@@ -29,7 +29,6 @@ interface CommentsCardProps {
 }
 
 export function CommentsCard({
-  issueId,
   comments,
   onAddComment,
   onUpdateComment,

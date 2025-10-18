@@ -327,15 +327,15 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
                               remarkPlugins={[remarkGfm]}
                               components={{
                                 // Style headings
-                                h1: ({ node, ...props }) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
-                                h2: ({ node, ...props }) => <h2 className="text-base font-semibold mt-2 mb-1" {...props} />,
-                                h3: ({ node, ...props }) => <h3 className="text-sm font-semibold mt-1 mb-1" {...props} />,
+                                h1: ({ ...props }) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
+                                h2: ({ ...props }) => <h2 className="text-base font-semibold mt-2 mb-1" {...props} />,
+                                h3: ({ ...props }) => <h3 className="text-sm font-semibold mt-1 mb-1" {...props} />,
                                 // Style lists
-                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
-                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
-                                li: ({ node, ...props }) => <li className="text-sm" {...props} />,
+                                ul: ({ ...props }) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
+                                ol: ({ ...props }) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
+                                li: ({ ...props }) => <li className="text-sm" {...props} />,
                                 // Style code blocks
-                                code: ({ inline, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
+                                code: ({ inline, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
                                   if (inline) {
                                     return (
                                       <code
@@ -356,28 +356,28 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
                                   );
                                 },
                                 // Style paragraphs
-                                p: ({ node, ...props }) => <p className="text-sm my-1" {...props} />,
+                                p: ({ ...props }) => <p className="text-sm my-1" {...props} />,
                                 // Style blockquotes
-                                blockquote: ({ node, ...props }) => (
+                                blockquote: ({ ...props }) => (
                                   <blockquote className="border-l-4 border-purple-400 pl-3 italic my-2" {...props} />
                                 ),
                                 // Style tables
-                                table: ({ node, ...props }) => (
+                                table: ({ ...props }) => (
                                   <div className="overflow-x-auto my-2">
                                     <table className="min-w-full divide-y divide-purple-200 dark:divide-purple-800" {...props} />
                                   </div>
                                 ),
-                                thead: ({ node, ...props }) => (
+                                thead: ({ ...props }) => (
                                   <thead className="bg-purple-100 dark:bg-purple-900/50" {...props} />
                                 ),
-                                th: ({ node, ...props }) => (
+                                th: ({ ...props }) => (
                                   <th className="px-3 py-2 text-left text-xs font-medium" {...props} />
                                 ),
-                                td: ({ node, ...props }) => (
+                                td: ({ ...props }) => (
                                   <td className="px-3 py-2 text-sm border-t border-purple-200 dark:border-purple-800" {...props} />
                                 ),
                                 // Style strong/bold
-                                strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
+                                strong: ({ ...props }) => <strong className="font-semibold" {...props} />,
                               }}
                             >
                               {message.content}
