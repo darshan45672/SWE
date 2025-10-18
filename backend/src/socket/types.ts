@@ -45,21 +45,21 @@ export interface NotificationData {
   read: boolean;
   actorId: string;
   recipientId: string;
-  issueId?: string;
-  link?: string;
+  issueId?: string | null;
+  link?: string | null;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt?: Date;
   actor: {
     id: string;
     name: string;
     email: string;
-    avatar?: string;
+    avatar?: string | null;
   };
   issue?: {
     id: string;
     title: string;
     status: string;
-  };
+  } | null;
 }
 
 // Events sent from server to client
