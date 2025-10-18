@@ -146,6 +146,21 @@ export const getIssuesByProjectId = async (projectId: string, userId: string) =>
           avatar: true,
         },
       },
+      comments: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
   });

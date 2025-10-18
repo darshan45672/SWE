@@ -8,6 +8,7 @@ import authRoutes from './auth/routes'
 import workspaceRoutes from './routes/workspace'
 import projectRoutes from './routes/project'
 import issueRoutes from './routes/issue'
+import commentRoutes from './routes/comment'
 import notificationRoutes from './routes/notification'
 import twoFactorRoutes from './routes/twoFactor'
 import verificationRoutes from './routes/verification'
@@ -55,6 +56,9 @@ app.use('/api/v1/projects', projectRoutes)
 
 // Issue routes - Context7 pattern with authentication (Simplified - no boards)
 app.use('/api/v1/issues', issueRoutes)
+
+// Comment routes - Context7 pattern with authentication
+app.use('/api/v1/comments', commentRoutes)
 
 // Notification routes - Context7 pattern with authentication
 app.use('/api/v1/notifications', notificationRoutes)

@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { ArrowLeft, Calendar, Tag, MessageSquare, Clock, User, UserPlus, CalendarCheck, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Tag, Clock, User, UserPlus, CalendarCheck, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { EditIssueDialog } from "@/components/kanban/edit-issue-dialog";
 import { DeleteIssueAlert } from "@/components/kanban/delete-issue-alert";
+import { CommentsCard } from "@/components/issue/comments-card";
 import { cn } from "@/lib/utils";
 
 const priorityColors = {
@@ -42,7 +43,7 @@ const statusLabels = {
 export default function IssueDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { issues } = useWorkspace();
+  const { issues, createCommentApi, updateCommentApi, deleteCommentApi } = useWorkspace();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -207,50 +208,19 @@ export default function IssueDetailsPage() {
             </Card>
 
             {/* Comments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Comments
-                  <Badge variant="secondary" className="ml-auto">
-                    {issue.comments.length}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {issue.comments.length > 0 ? (
-                  <div className="space-y-4">
-                    {issue.comments.map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={comment.author?.avatar || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {comment.author?.name?.slice(0, 2).toUpperCase() || "??"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              {comment.author?.name || "Unknown"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(comment.createdAt)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {comment.content}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No comments yet
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <CommentsCard
+              issueId={issue.id}
+              comments={issue.comments}
+              onAddComment={async (content) => {
+                await createCommentApi(issue.id, content);
+              }}
+              onUpdateComment={async (commentId, content) => {
+                await updateCommentApi(commentId, content);
+              }}
+              onDeleteComment={async (commentId) => {
+                await deleteCommentApi(commentId);
+              }}
+            />
           </div>
 
           {/* Sidebar */}

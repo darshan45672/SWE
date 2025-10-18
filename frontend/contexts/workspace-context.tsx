@@ -52,6 +52,9 @@ interface WorkspaceContextType {
   createIssue: (issueData: CreateIssueData) => Promise<{ success: boolean; message?: string; data?: Issue }>;
   updateIssueApi: (issueId: string, issueData: Partial<CreateIssueData>) => Promise<{ success: boolean; message?: string; data?: Issue }>;
   deleteIssueApi: (issueId: string) => Promise<{ success: boolean; message?: string }>;
+  createCommentApi: (issueId: string, content: string) => Promise<{ success: boolean; message?: string }>;
+  updateCommentApi: (commentId: string, content: string) => Promise<{ success: boolean; message?: string }>;
+  deleteCommentApi: (commentId: string) => Promise<{ success: boolean; message?: string }>;
   markNotificationAsRead: (notificationId: string) => void;
   markAllNotificationsAsRead: () => void;
   clearNotification: (notificationId: string) => void;
@@ -448,7 +451,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           updatedAt: new Date(issue.updatedAt),
           dueDate: issue.dueDate ? new Date(issue.dueDate) : undefined,
           tags: issue.tags ? issue.tags.map((t: any) => t.tag.name) : [], // Extract tag names from relation
-          comments: [],
+          comments: issue.comments ? issue.comments.map((comment: any) => ({
+            id: comment.id,
+            content: comment.content,
+            authorId: comment.authorId,
+            issueId: comment.issueId,
+            createdAt: new Date(comment.createdAt),
+            updatedAt: new Date(comment.updatedAt),
+            author: comment.author ? {
+              id: comment.author.id,
+              name: comment.author.name,
+              email: comment.author.email,
+              avatar: comment.author.avatar,
+            } : null,
+          })) : [],
         }));
         
         setIssues(mappedIssues);
@@ -908,6 +924,107 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // Create comment - Context7 pattern
+  const createCommentApi = async (issueId: string, content: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/comments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ issueId, content }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Failed to create comment' };
+      }
+
+      // Refresh issues to get updated comments
+      if (currentProject) {
+        await fetchIssues(currentProject.id);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      return { success: false, message: 'An error occurred while creating the comment' };
+    }
+  };
+
+  // Update comment - Context7 pattern
+  const updateCommentApi = async (commentId: string, content: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/comments/${commentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Failed to update comment' };
+      }
+
+      // Refresh issues to get updated comments
+      if (currentProject) {
+        await fetchIssues(currentProject.id);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      return { success: false, message: 'An error occurred while updating the comment' };
+    }
+  };
+
+  // Delete comment - Context7 pattern
+  const deleteCommentApi = async (commentId: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Failed to delete comment' };
+      }
+
+      // Refresh issues to get updated comments
+      if (currentProject) {
+        await fetchIssues(currentProject.id);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      return { success: false, message: 'An error occurred while deleting the comment' };
+    }
+  };
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -932,6 +1049,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         createIssue,
         updateIssueApi,
         deleteIssueApi,
+        createCommentApi,
+        updateCommentApi,
+        deleteCommentApi,
         markNotificationAsRead,
         markAllNotificationsAsRead,
         clearNotification,
