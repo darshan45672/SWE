@@ -39,11 +39,49 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/auth/forgot-password`;
+      
+      console.log('📧 Sending forgot password request to:', endpoint);
+      console.log('📧 Email:', formData.email);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      console.log('📧 Response status:', response.status);
+      console.log('📧 Response ok:', response.ok);
+
+      const result = await response.json();
+      console.log('📧 Response data:', result);
+
+      if (!response.ok) {
+        console.error('❌ Request failed:', result);
+        setError(result.message || 'Failed to send reset email');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ API returned error:', result.message);
+        setError(result.message || 'Failed to send reset email');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('✅ Password reset email sent successfully');
       setIsSubmitted(true);
-    }, 1500);
+    } catch (err) {
+      console.error('❌ Network error:', err);
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isSubmitted) {

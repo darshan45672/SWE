@@ -48,3 +48,92 @@ export async function updatePassword(
     };
   }
 }
+
+export interface ForgotPasswordData {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Request password reset
+ * Context7 pattern: Send reset email without revealing if user exists (security)
+ */
+export async function forgotPassword(
+  data: ForgotPasswordData
+): Promise<ForgotPasswordResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to send reset email',
+      };
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Forgot password API error:', error);
+    return {
+      success: false,
+      message: 'Network error. Please check your connection and try again.',
+    };
+  }
+}
+
+export interface ResetPasswordData {
+  token: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Reset password with token
+ * Context7 pattern: Validate token and update password
+ */
+export async function resetPassword(
+  data: ResetPasswordData
+): Promise<ResetPasswordResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to reset password',
+      };
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Reset password API error:', error);
+    return {
+      success: false,
+      message: 'Network error. Please check your connection and try again.',
+    };
+  }
+}

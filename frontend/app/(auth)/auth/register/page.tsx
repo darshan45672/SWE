@@ -713,7 +713,7 @@ export default function RegisterPage() {
               
               <div className="rounded-lg bg-muted p-3">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Note:</strong> If you don't see the email, please check your spam folder. The verification link will expire in 24 hours.
+                  <strong>Note:</strong> If you don&apos;t see the email, please check your spam folder. The verification link will expire in 24 hours.
                 </p>
               </div>
             </div>
