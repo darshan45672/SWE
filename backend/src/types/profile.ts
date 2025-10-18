@@ -13,6 +13,12 @@ export interface UpdateProfileData {
   avatar?: string;
 }
 
+// Password Update Types - Context7 Pattern
+export interface UpdatePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface ProfileResponse {
   success: boolean;
   message: string;
@@ -36,6 +42,11 @@ export interface ProfileResponse {
 }
 
 export interface DeleteAccountResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface UpdatePasswordResponse {
   success: boolean;
   message: string;
 }

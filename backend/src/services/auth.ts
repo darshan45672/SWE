@@ -382,4 +382,70 @@ export class AuthService {
       };
     }
   }
+
+  static async updatePassword(
+    userId: string, 
+    currentPassword: string, 
+    newPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('🔐 Attempting to update password for user:', userId);
+      console.log('🔐 Current password length:', currentPassword?.length || 0);
+      console.log('🔐 New password length:', newPassword?.length || 0);
+
+      // Get user with password for verification
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        console.log('❌ User not found:', userId);
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+
+      console.log('✅ User found:', user.id, user.email);
+      console.log('🔐 Stored password hash:', user.password.substring(0, 20) + '...');
+
+      // Verify current password (Context7 security pattern)
+      const isPasswordValid = await comparePassword(currentPassword, user.password);
+      console.log('🔐 Password comparison result:', isPasswordValid);
+      
+      if (!isPasswordValid) {
+        console.log('❌ Invalid current password');
+        return {
+          success: false,
+          message: 'Current password is incorrect'
+        };
+      }
+
+      // Hash new password
+      const hashedNewPassword = await hashPassword(newPassword);
+      console.log('🔐 New password hashed successfully');
+
+      // Update password
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedNewPassword,
+          updatedAt: new Date()
+        }
+      });
+
+      console.log('✅ Password updated successfully for user:', userId);
+
+      return {
+        success: true,
+        message: 'Password updated successfully'
+      };
+    } catch (error) {
+      console.error('❌ Update password error:', error);
+      return {
+        success: false,
+        message: 'Failed to update password. Please try again.'
+      };
+    }
+  }
 }

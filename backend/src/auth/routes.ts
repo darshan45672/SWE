@@ -7,7 +7,8 @@ import {
 } from '../validators/auth';
 import { 
   updateProfileValidation,
-  deleteAccountValidation 
+  deleteAccountValidation,
+  updatePasswordValidation
 } from '../validators/profile';
 import { handleValidationErrors } from '../validators/middleware';
 
@@ -43,6 +44,13 @@ router.delete('/account',
   deleteAccountValidation,
   handleValidationErrors,
   AuthController.deleteAccount
+);
+
+router.put('/password',
+  requireAuth,
+  updatePasswordValidation,
+  handleValidationErrors,
+  AuthController.updatePassword
 );
 
 router.get('/verify', requireAuth, AuthController.verifyToken);

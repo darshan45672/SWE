@@ -116,6 +116,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     id: authUser.id,
     name: authUser.name,
     email: authUser.email,
+    emailVerified: authUser.emailVerified,
     avatar: authUser.avatar || authUser.name.slice(0, 2).toUpperCase(),
   } : mockUsers[0];
 

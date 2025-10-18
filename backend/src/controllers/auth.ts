@@ -237,4 +237,41 @@ export class AuthController {
       });
     }
   }
+
+  static async updatePassword(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthenticatedRequest).user.userId;
+      const { currentPassword, newPassword } = req.body;
+
+      console.log('🔐 Password update request for user:', userId);
+      console.log('🔐 Request body keys:', Object.keys(req.body));
+      console.log('🔐 Has currentPassword:', !!currentPassword);
+      console.log('🔐 Has newPassword:', !!newPassword);
+
+      if (!currentPassword || !newPassword) {
+        console.log('❌ Missing required fields');
+        res.status(400).json({
+          success: false,
+          message: 'Current password and new password are required'
+        });
+        return;
+      }
+
+      const result = await AuthService.updatePassword(userId, currentPassword, newPassword);
+
+      console.log('🔐 Service result:', result);
+
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Update password controller error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while updating password'
+      });
+    }
+  }
 }

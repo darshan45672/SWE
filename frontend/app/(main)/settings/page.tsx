@@ -8,6 +8,7 @@ import * as z from "zod";
 import { ArrowLeft, Eye, EyeOff, Mail, Bell, Laptop, Smartphone, Trash2 } from "lucide-react";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { TwoFactorSettings } from "@/components/auth/two-factor-settings";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,11 +103,66 @@ export default function SettingsPage() {
 
   const onPasswordSubmit = async (data: PasswordFormValues) => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log("Password changed:", data);
-    passwordForm.reset();
-    setIsLoading(false);
+    
+    try {
+      // Get auth token
+      const token = localStorage.getItem('auth-token');
+      
+      if (!token) {
+        toast.error('You must be logged in to change your password');
+        setIsLoading(false);
+        return;
+      }
+
+      // Call the API to update password
+      const updatePassword = async (updateData: { currentPassword: string; newPassword: string }, authToken: string) => {
+        console.log('🔐 Sending password update request...');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const endpoint = `${apiUrl}/api/v1/auth/password`;
+        console.log('🔐 API endpoint:', endpoint);
+        
+        const response = await fetch(endpoint, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(updateData),
+        });
+
+        const result = await response.json();
+        console.log('🔐 Password update response:', { status: response.status, result });
+        return result;
+      };
+
+      const result = await updatePassword(
+        {
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        },
+        token
+      );
+
+      if (result.success) {
+        toast.success('Password updated successfully!', {
+          description: 'Your password has been changed. Please remember it for future logins.',
+        });
+        passwordForm.reset();
+      } else {
+        console.error('❌ Password update failed:', result);
+        toast.error('Failed to update password', {
+          description: result.message || 'Please check your current password and try again.',
+        });
+      }
+    } catch (error) {
+      console.error('Password update error:', error);
+      toast.error('An error occurred', {
+        description: 'Unable to update your password. Please try again later.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRevokeSession = (sessionId: string) => {
