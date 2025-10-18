@@ -57,6 +57,11 @@ export const updateProjectValidation = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Description must not exceed 500 characters'),
+  
+  body('isActive')
+    .optional()
+    .isBoolean()
+    .withMessage('isActive must be a boolean value'),
 ];
 
 // Delete project validation

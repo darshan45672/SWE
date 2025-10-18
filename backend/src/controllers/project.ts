@@ -137,12 +137,13 @@ export const updateProject = async (req: Request, res: Response) => {
     }
 
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, isActive } = req.body;
 
     // Update project
     const project = await projectService.updateProject(id, userId, {
       name,
       description,
+      isActive,
     });
 
     if (!project) {

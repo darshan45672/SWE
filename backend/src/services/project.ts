@@ -11,6 +11,7 @@ export interface CreateProjectData {
 export interface UpdateProjectData {
   name?: string;
   description?: string;
+  isActive?: boolean;
 }
 
 /**
@@ -204,6 +205,7 @@ export const updateProject = async (
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
       },
     });
 

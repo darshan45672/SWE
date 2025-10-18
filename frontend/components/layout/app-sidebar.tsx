@@ -183,7 +183,7 @@ export function AppSidebar() {
             Projects
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <div className="group-data-[collapsible=icon]:hidden px-2">
+            <div className="group-data-[collapsible=icon]:hidden px-2 w-full">
               <ProjectSwitcher />
             </div>
           </SidebarGroupContent>
