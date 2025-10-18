@@ -50,3 +50,23 @@ export interface UpdatePasswordResponse {
   success: boolean;
   message: string;
 }
+
+// Password Reset Types - Context7 Pattern
+export interface ForgotPasswordData {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ResetPasswordData {
+  token: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}

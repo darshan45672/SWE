@@ -274,4 +274,61 @@ export class AuthController {
       });
     }
   }
+
+  static async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+
+      console.log('🔐 Forgot password request for email:', email);
+
+      if (!email) {
+        res.status(400).json({
+          success: false,
+          message: 'Email is required'
+        });
+        return;
+      }
+
+      const result = await AuthService.forgotPassword(email);
+
+      // Always return 200 to prevent email enumeration
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Forgot password controller error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while processing password reset request'
+      });
+    }
+  }
+
+  static async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { token, newPassword } = req.body;
+
+      console.log('🔐 Reset password request');
+
+      if (!token || !newPassword) {
+        res.status(400).json({
+          success: false,
+          message: 'Token and new password are required'
+        });
+        return;
+      }
+
+      const result = await AuthService.resetPassword(token, newPassword);
+
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Reset password controller error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while resetting password'
+      });
+    }
+  }
 }

@@ -8,7 +8,9 @@ import {
 import { 
   updateProfileValidation,
   deleteAccountValidation,
-  updatePasswordValidation
+  updatePasswordValidation,
+  forgotPasswordValidation,
+  resetPasswordValidation
 } from '../validators/profile';
 import { handleValidationErrors } from '../validators/middleware';
 
@@ -51,6 +53,18 @@ router.put('/password',
   updatePasswordValidation,
   handleValidationErrors,
   AuthController.updatePassword
+);
+
+router.post('/forgot-password',
+  forgotPasswordValidation,
+  handleValidationErrors,
+  AuthController.forgotPassword
+);
+
+router.post('/reset-password',
+  resetPasswordValidation,
+  handleValidationErrors,
+  AuthController.resetPassword
 );
 
 router.get('/verify', requireAuth, AuthController.verifyToken);
