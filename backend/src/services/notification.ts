@@ -1,4 +1,4 @@
-    import prisma from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { NotificationType } from '@prisma/client';
 import { getIO } from '../socket';
 
@@ -48,10 +48,13 @@ export const createNotification = async (data: CreateNotificationData) => {
   // Emit Socket.IO event to notify user in real-time
   try {
     const io = getIO();
-    io.to(data.recipientId).emit('notification', notification);
-    console.log(`📬 Notification sent to user ${data.recipientId}:`, notification.title);
+    if (io) {
+      io.to(data.recipientId).emit('notification', notification);
+      console.log(`📬 Notification sent to user ${data.recipientId}:`, notification.title);
+    }
   } catch (error) {
     console.error('Failed to emit notification event:', error);
+    // Continue even if Socket.IO emission fails
   }
 
   return notification;

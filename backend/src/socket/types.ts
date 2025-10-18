@@ -36,6 +36,32 @@ export interface UserPresenceData {
   projectId: string;
 }
 
+// Notification data structure
+export interface NotificationData {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  actorId: string;
+  recipientId: string;
+  issueId?: string;
+  link?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  actor: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  issue?: {
+    id: string;
+    title: string;
+    status: string;
+  };
+}
+
 // Events sent from server to client
 export interface ServerToClientEvents {
   // New message received
@@ -61,6 +87,9 @@ export interface ServerToClientEvents {
   
   // Connection established confirmation
   'connection:success': (data: { userId: string; socketId: string }) => void;
+  
+  // Notification received
+  'notification': (notification: NotificationData) => void;
   
   // Error occurred
   'error': (error: { message: string; code?: string }) => void;
