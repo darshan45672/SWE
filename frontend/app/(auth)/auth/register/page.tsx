@@ -541,15 +541,15 @@ export default function RegisterPage() {
                             </button>
                           </div>
                         </FormControl>
-                        {password && confirmPassword && password !== confirmPassword && (
-                          <p className="text-sm text-destructive flex items-center gap-2">
-                            <X className="h-4 w-4" />
-                            Passwords do not match
+                        {confirmPassword && password && password !== confirmPassword && (
+                          <p className="text-sm text-destructive flex items-center gap-1.5 mt-1.5">
+                            <X className="h-3.5 w-3.5" />
+                            Passwords don't match
                           </p>
                         )}
-                        {password && confirmPassword && password === confirmPassword && (
-                          <p className="text-sm text-green-600 flex items-center gap-2">
-                            <Check className="h-4 w-4" />
+                        {confirmPassword && password && password === confirmPassword && (
+                          <p className="text-sm text-green-600 dark:text-green-500 flex items-center gap-1.5 mt-1.5">
+                            <Check className="h-3.5 w-3.5" />
                             Passwords match
                           </p>
                         )}
@@ -561,56 +561,79 @@ export default function RegisterPage() {
 
                 {/* Password Strength Indicator */}
                 {password && (
-                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
-                    <h4 className="text-sm font-medium">Password Strength</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Password Strength
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                       <div className="flex items-center gap-2">
                         {passwordValidation.hasMinLength ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" />
+                          </div>
                         ) : (
-                          <X className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+                            <X className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
                         )}
-                        <span className={passwordValidation.hasMinLength ? "text-green-600" : "text-muted-foreground"}>
+                        <span className={passwordValidation.hasMinLength ? "text-green-600 dark:text-green-500 font-medium" : "text-muted-foreground"}>
                           8+ characters
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         {passwordValidation.hasUpperCase ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" />
+                          </div>
                         ) : (
-                          <X className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+                            <X className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
                         )}
-                        <span className={passwordValidation.hasUpperCase ? "text-green-600" : "text-muted-foreground"}>
+                        <span className={passwordValidation.hasUpperCase ? "text-green-600 dark:text-green-500 font-medium" : "text-muted-foreground"}>
                           Uppercase
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         {passwordValidation.hasLowerCase ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" />
+                          </div>
                         ) : (
-                          <X className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+                            <X className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
                         )}
-                        <span className={passwordValidation.hasLowerCase ? "text-green-600" : "text-muted-foreground"}>
+                        <span className={passwordValidation.hasLowerCase ? "text-green-600 dark:text-green-500 font-medium" : "text-muted-foreground"}>
                           Lowercase
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         {passwordValidation.hasNumber ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" />
+                          </div>
                         ) : (
-                          <X className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+                            <X className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
                         )}
-                        <span className={passwordValidation.hasNumber ? "text-green-600" : "text-muted-foreground"}>
+                        <span className={passwordValidation.hasNumber ? "text-green-600 dark:text-green-500 font-medium" : "text-muted-foreground"}>
                           Number
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 col-span-2">
                         {passwordValidation.hasSpecialChar ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" />
+                          </div>
                         ) : (
-                          <X className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+                            <X className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
                         )}
-                        <span className={passwordValidation.hasSpecialChar ? "text-green-600" : "text-muted-foreground"}>
+                        <span className={passwordValidation.hasSpecialChar ? "text-green-600 dark:text-green-500 font-medium" : "text-muted-foreground"}>
                           Special character
                         </span>
                       </div>
