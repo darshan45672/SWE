@@ -17,7 +17,9 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 import { InviteWorkspaceDialog } from "@/components/workspace/invite-workspace-dialog";
+import { IssueSearch } from "@/components/kanban/issue-search";
 import { useAuth } from "@/contexts/auth-context";
+import { useWorkspace } from "@/contexts/workspace-context";
 
 interface TopNavigationProps {
   onToggleChat: () => void;
@@ -26,6 +28,7 @@ interface TopNavigationProps {
 
 export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) {
   const { user, logout, isAuthenticated } = useAuth();
+  const { issues } = useWorkspace();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -66,19 +69,12 @@ export function TopNavigation({ onToggleChat, isChatOpen }: TopNavigationProps) 
 
         {/* Center Section: Search Bar - Hidden on mobile */}
         <div className="hidden md:flex flex-1 max-w-2xl mx-4">
-          <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search issues..."
-              className="w-full pl-8 h-9"
-            />
-          </div>
+          <IssueSearch issues={issues} />
         </div>
 
         {/* Right Section: Actions */}
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Search Icon on Mobile */}
+          {/* Search Icon on Mobile - TODO: Add mobile search modal */}
           <Button variant="ghost" size="icon" className="md:hidden">
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>

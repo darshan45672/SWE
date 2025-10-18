@@ -137,7 +137,7 @@ export function KanbanBoard() {
       });
 
       // Optimistically update UI
-      const newSourceIssues = sourceColumn.issues.filter(
+        const newSourceIssues = sourceColumn.issues.filter(
         (issue) => issue.id !== activeIssue.id
       );
       const newDestIssues = [...destColumn.issues, { ...activeIssue, status: newStatus }];
