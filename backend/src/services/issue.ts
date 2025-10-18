@@ -198,9 +198,19 @@ export const createIssue = async (
     }
   }
 
+  // Get the next issue number for this project - Context7 pattern
+  const lastIssue = await prisma.issue.findFirst({
+    where: { projectId },
+    orderBy: { issueNumber: 'desc' },
+    select: { issueNumber: true },
+  });
+
+  const nextIssueNumber = (lastIssue?.issueNumber || 0) + 1;
+
   // Create issue with tags and assignee
   const issue = await prisma.issue.create({
     data: {
+      issueNumber: nextIssueNumber,
       title,
       description: description || '',
       status,

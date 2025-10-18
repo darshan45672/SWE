@@ -111,6 +111,12 @@ export function AppSidebar() {
         <div className="flex items-center gap-1.5 flex-wrap">
           <Badge 
             variant="outline" 
+            className="text-[10px] px-1 py-0 h-4 font-mono bg-muted/50"
+          >
+            #{issue.issueNumber}
+          </Badge>
+          <Badge 
+            variant="outline" 
             className={cn("text-[10px] px-1 py-0 h-4", priorityColors[issue.priority])}
           >
             {issue.priority}
@@ -118,7 +124,6 @@ export function AppSidebar() {
           <span className={cn("text-[10px] font-medium", typeColors[issue.type])}>
             {issue.type}
           </span>
-          <span className="text-[10px] text-muted-foreground">#{issue.id.slice(-6)}</span>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-0.5">

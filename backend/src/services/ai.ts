@@ -75,11 +75,13 @@ class AIService {
         where: { projectId },
         select: {
           id: true,
+          issueNumber: true,
           title: true,
           status: true,
           priority: true,
           type: true,
         },
+        orderBy: { issueNumber: 'asc' },
       });
 
       // Fetch recent messages (excluding AI messages to avoid circular context)
@@ -170,6 +172,7 @@ class AIService {
             URGENT: issues.filter((i) => i.priority === 'URGENT').length,
           },
           recent: issues.slice(0, 5).map((i) => ({
+            issueNumber: i.issueNumber,
             title: i.title,
             status: i.status,
             priority: i.priority,
@@ -373,8 +376,25 @@ class AIService {
   private async getRecentIssuesTool(projectId: string, limit: number = 10) {
     const issues = await prisma.issue.findMany({
       where: { projectId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { issueNumber: 'asc' },
       take: limit,
+      select: {
+        id: true,
+        issueNumber: true,
+        title: true,
+        description: true,
+        status: true,
+        priority: true,
+        type: true,
+        createdAt: true,
+        dueDate: true,
+        assignee: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
     return { issues };
   }
@@ -454,7 +474,7 @@ class AIService {
   * LOW: ${projectContext?.issues?.byPriority?.LOW || 0}
 
 **Recent Issues (Last 10):**
-${recentIssues.issues.map((issue: any, idx: number) => `${idx + 1}. [${issue.status}] ${issue.title} (Priority: ${issue.priority}, Type: ${issue.type})`).join('\n')}
+${recentIssues.issues.map((issue: any) => `#${issue.issueNumber} - [${issue.status}] ${issue.title} (Priority: ${issue.priority}, Type: ${issue.type})${issue.assignee ? ` - Assigned to: ${issue.assignee.name}` : ''}`).join('\n')}
 
 **Team Members (${projectContext?.members?.length || 0}):**
 ${projectContext?.members?.map((m: any) => {

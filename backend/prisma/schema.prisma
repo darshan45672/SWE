@@ -126,6 +126,7 @@ model Project {
 // Issue model
 model Issue {
   id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  issueNumber Int         // Auto-incremented per project
   title       String
   description String      @default("")
   status      IssueStatus @default(TODO)
@@ -147,6 +148,7 @@ model Issue {
   tags          IssueTag[]
   notifications Notification[]
 
+  @@unique([projectId, issueNumber])
   @@map("issues")
 }
 
