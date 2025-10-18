@@ -2,7 +2,8 @@ import { User } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { hashPassword, comparePassword } from '../auth/password';
 import { generateToken } from '../auth/jwt';
-import { UpdateProfileData, ProfileResponse, DeleteAccountResponse } from '../types/profile';
+import { UpdateProfileData, ProfileResponse, DeleteAccountResponse, ForgotPasswordResponse, ResetPasswordResponse } from '../types/profile';
+import crypto from 'crypto';
 
 export interface RegisterData {
   // Basic Information
@@ -379,6 +380,186 @@ export class AuthService {
       return {
         success: false,
         message: 'Failed to delete account. Please try again.'
+      };
+    }
+  }
+
+  static async updatePassword(
+    userId: string, 
+    currentPassword: string, 
+    newPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('🔐 Attempting to update password for user:', userId);
+      console.log('🔐 Current password length:', currentPassword?.length || 0);
+      console.log('🔐 New password length:', newPassword?.length || 0);
+
+      // Get user with password for verification
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        console.log('❌ User not found:', userId);
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+
+      console.log('✅ User found:', user.id, user.email);
+      console.log('🔐 Stored password hash:', user.password.substring(0, 20) + '...');
+
+      // Verify current password (Context7 security pattern)
+      const isPasswordValid = await comparePassword(currentPassword, user.password);
+      console.log('🔐 Password comparison result:', isPasswordValid);
+      
+      if (!isPasswordValid) {
+        console.log('❌ Invalid current password');
+        return {
+          success: false,
+          message: 'Current password is incorrect'
+        };
+      }
+
+      // Hash new password
+      const hashedNewPassword = await hashPassword(newPassword);
+      console.log('🔐 New password hashed successfully');
+
+      // Update password
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedNewPassword,
+          updatedAt: new Date()
+        }
+      });
+
+      console.log('✅ Password updated successfully for user:', userId);
+
+      return {
+        success: true,
+        message: 'Password updated successfully'
+      };
+    } catch (error) {
+      console.error('❌ Update password error:', error);
+      return {
+        success: false,
+        message: 'Failed to update password. Please try again.'
+      };
+    }
+  }
+
+  static async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+    try {
+      console.log('🔐 Forgot password request for email:', email);
+
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email }
+      });
+
+      // Context7 security pattern: Don't reveal if email exists
+      if (!user) {
+        console.log('❌ User not found for email:', email);
+        // Still return success to prevent email enumeration
+        return {
+          success: true,
+          message: 'If an account with that email exists, a password reset link has been sent.'
+        };
+      }
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Save reset token to database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken,
+          resetTokenExpiry
+        }
+      });
+
+      console.log('✅ Reset token generated for user:', user.id);
+
+      // Send password reset email (async, don't wait)
+      const { sendPasswordResetEmail } = require('./email');
+      
+      // Context7 pattern: Log reset URL for development/testing
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
+      console.log('🔗 Password reset URL:', resetUrl);
+      
+      // Pass just the token - email service will construct the full URL
+      sendPasswordResetEmail(user.email, user.name || 'User', resetToken)
+        .then(() => {
+          console.log('✅ Password reset email sent to:', user.email);
+        })
+        .catch((error: Error) => {
+          console.error('❌ Failed to send password reset email:', error);
+        });
+
+      return {
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      };
+    } catch (error) {
+      console.error('❌ Forgot password error:', error);
+      return {
+        success: false,
+        message: 'Failed to process password reset request. Please try again.'
+      };
+    }
+  }
+
+  static async resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse> {
+    try {
+      console.log('🔐 Password reset request with token');
+
+      // Find user by reset token
+      const user = await prisma.user.findFirst({
+        where: {
+          resetToken: token,
+          resetTokenExpiry: {
+            gt: new Date() // Token not expired
+          }
+        }
+      });
+
+      if (!user) {
+        console.log('❌ Invalid or expired reset token');
+        return {
+          success: false,
+          message: 'Invalid or expired reset token. Please request a new password reset link.'
+        };
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password and clear reset token
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          resetToken: null,
+          resetTokenExpiry: null,
+          updatedAt: new Date()
+        }
+      });
+
+      console.log('✅ Password reset successfully for user:', user.id);
+
+      return {
+        success: true,
+        message: 'Password has been reset successfully. You can now sign in with your new password.'
+      };
+    } catch (error) {
+      console.error('❌ Reset password error:', error);
+      return {
+        success: false,
+        message: 'Failed to reset password. Please try again.'
       };
     }
   }

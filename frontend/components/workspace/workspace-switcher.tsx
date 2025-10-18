@@ -87,14 +87,14 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
           role="combobox"
           className={cn("justify-between gap-2 px-3", className)}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div
-              className="flex h-6 w-6 items-center justify-center rounded text-xs text-white"
+              className="flex h-6 w-6 items-center justify-center rounded text-xs text-white shrink-0"
               style={{ backgroundColor: currentWorkspace.color || '#3B82F6' }}
             >
               {currentWorkspace.icon}
             </div>
-            <span className="font-medium">{currentWorkspace.name}</span>
+            <span className="font-medium truncate">{currentWorkspace.name}</span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -114,14 +114,14 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
               className="flex items-center gap-2"
             >
               <div
-                className="flex h-6 w-6 items-center justify-center rounded text-xs text-white"
+                className="flex h-6 w-6 items-center justify-center rounded text-xs text-white shrink-0"
                 style={{ backgroundColor: workspace.color || '#3B82F6' }}
               >
                 {workspace.icon}
               </div>
-              <span className="flex-1">{workspace.name}</span>
+              <span className="flex-1 truncate">{workspace.name}</span>
               {currentWorkspace.id === workspace.id && (
-                <Check className="h-4 w-4" />
+                <Check className="h-4 w-4 shrink-0" />
               )}
             </DropdownMenuItem>
           ))

@@ -9,19 +9,18 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: swe
+      - MONGO_INITDB_DATABASE=swe
     volumes:
       - mongodb_data:/data/db
-      - ./backend/init-replica-set.js:/docker-entrypoint-initdb.d/init-replica-set.js:ro
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+      - ./backend/init-replica-set.js:/docker-entrypoint-initdb.d/init-replica-set.js
+    command: mongod --replSet rs0 --bind_ip_all
     networks:
       - swe-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/swe --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 40s
 
   # Backend API Service
   backend:
@@ -33,38 +32,27 @@ services:
     ports:
       - "3001:3001"
     environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: mongodb://mongodb:27017/swe?retryWrites=true&w=majority&replicaSet=rs0
-      CORS_ORIGIN: http://localhost:3000
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      API_VERSION: v1
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@swe.local}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-SWE Platform}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY}
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=mongodb://mongodb:27017/swe?replicaSet=rs0&directConnection=true
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-key-change-in-production}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /app/dist
     depends_on:
       mongodb:
         condition: service_healthy
     networks:
       - swe-network
-    volumes:
-      # Optional: mount logs directory for persistent logs
-      - backend_logs:/app/logs
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+    command: sh -c "npx prisma generate && npm start"
 
-  # Frontend Next.js Application
+  # Frontend Next.js Service
   frontend:
     build:
       context: ./frontend
@@ -74,24 +62,19 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
+      - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3001}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - swe-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
 volumes:
   mongodb_data:
-    driver: local
-  backend_logs:
     driver: local
 
 networks:

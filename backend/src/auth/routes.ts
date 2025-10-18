@@ -7,7 +7,10 @@ import {
 } from '../validators/auth';
 import { 
   updateProfileValidation,
-  deleteAccountValidation 
+  deleteAccountValidation,
+  updatePasswordValidation,
+  forgotPasswordValidation,
+  resetPasswordValidation
 } from '../validators/profile';
 import { handleValidationErrors } from '../validators/middleware';
 
@@ -43,6 +46,25 @@ router.delete('/account',
   deleteAccountValidation,
   handleValidationErrors,
   AuthController.deleteAccount
+);
+
+router.put('/password',
+  requireAuth,
+  updatePasswordValidation,
+  handleValidationErrors,
+  AuthController.updatePassword
+);
+
+router.post('/forgot-password',
+  forgotPasswordValidation,
+  handleValidationErrors,
+  AuthController.forgotPassword
+);
+
+router.post('/reset-password',
+  resetPasswordValidation,
+  handleValidationErrors,
+  AuthController.resetPassword
 );
 
 router.get('/verify', requireAuth, AuthController.verifyToken);

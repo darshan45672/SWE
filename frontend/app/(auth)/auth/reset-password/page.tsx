@@ -25,16 +25,22 @@ function ResetPasswordForm() {
   const [errors, setErrors] = useState<Partial<Record<keyof ResetPasswordFormData, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isTokenValid, setIsTokenValid] = useState(true);
+  const [isTokenValid, setIsTokenValid] = useState<boolean | null>(null);
 
   const passwordValidation = validatePassword(formData.password);
 
-  // Validate token on mount
+  // Context7 pattern: Check if token exists in URL on mount
   useEffect(() => {
-    if (!token) {
+    console.log('🔐 Reset password page loaded');
+    console.log('🔐 Token from URL:', token);
+    
+    if (!token || token.trim() === '') {
+      console.error('❌ No token found in URL');
       setIsTokenValid(false);
+    } else {
+      console.log('✅ Token found, proceeding with form');
+      setIsTokenValid(true);
     }
-    // In a real app, you would validate the token with your backend here
   }, [token]);
 
   const validate = (): boolean => {
@@ -63,20 +69,84 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/auth/reset-password`;
+      
+      console.log('🔐 Submitting password reset');
+      console.log('🔐 Endpoint:', endpoint);
+      console.log('🔐 Token:', token);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: token,
+          newPassword: formData.password,
+        }),
+      });
+
+      console.log('🔐 Response status:', response.status);
+      const result = await response.json();
+      console.log('🔐 Response data:', result);
+
+      if (!response.ok) {
+        // Handle specific error cases
+        console.error('❌ Reset password failed:', result.message);
+        if (result.message?.includes('expired') || result.message?.includes('invalid') || result.message?.includes('Token')) {
+          console.error('❌ Token is invalid or expired');
+          setIsTokenValid(false);
+        } else {
+          setErrors({ password: result.message || 'Failed to reset password' });
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ API returned error:', result.message);
+        if (result.message?.includes('expired') || result.message?.includes('invalid') || result.message?.includes('Token')) {
+          setIsTokenValid(false);
+        } else {
+          setErrors({ password: result.message || 'Failed to reset password' });
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('✅ Password reset successful');
       setIsSuccess(true);
 
       // Redirect to sign in after 2 seconds
       setTimeout(() => {
         router.push("/auth/signin");
       }, 2000);
-    }, 1500);
+    } catch (err) {
+      console.error('❌ Network error:', err);
+      setErrors({ password: 'Network error. Please check your connection and try again.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // Context7 pattern: Show loading state while checking token
+  if (isTokenValid === null) {
+    return (
+      <AuthLayout
+        title="Loading..."
+        description="Please wait while we verify your reset link"
+      >
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AuthLayout>
+    );
+  }
+
   // Invalid or missing token
-  if (!isTokenValid) {
+  if (isTokenValid === false) {
     return (
       <AuthLayout
         title="Invalid reset link"
