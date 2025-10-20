@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { CalendarIcon, FolderKanban, Users, FileText, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, FolderKanban, FileText, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface ProjectDetailsDialogProps {

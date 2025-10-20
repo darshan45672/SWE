@@ -544,7 +544,7 @@ export default function RegisterPage() {
                         {confirmPassword && password && password !== confirmPassword && (
                           <p className="text-sm text-destructive flex items-center gap-1.5 mt-1.5">
                             <X className="h-3.5 w-3.5" />
-                            Passwords don't match
+                            Passwords don&apos;t match
                           </p>
                         )}
                         {confirmPassword && password && password === confirmPassword && (

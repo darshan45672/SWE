@@ -26,6 +26,7 @@ export const mockUsers: User[] = [
 export const mockIssues: Issue[] = [
   {
     id: "1",
+    issueNumber: 1,
     title: "Fix login bug",
     description: "Users are unable to log in with Google OAuth",
     status: "todo",
@@ -41,6 +42,7 @@ export const mockIssues: Issue[] = [
   },
   {
     id: "2",
+    issueNumber: 2,
     title: "Implement dark mode",
     description: "Add dark mode theme to the application",
     status: "in-progress",
@@ -56,6 +58,7 @@ export const mockIssues: Issue[] = [
   },
   {
     id: "3",
+    issueNumber: 3,
     title: "Update documentation",
     description: "Update API documentation with new endpoints",
     status: "done",
@@ -70,6 +73,7 @@ export const mockIssues: Issue[] = [
   },
   {
     id: "4",
+    issueNumber: 4,
     title: "Optimize database queries",
     description: "Improve performance of dashboard queries",
     status: "todo",
@@ -85,6 +89,7 @@ export const mockIssues: Issue[] = [
   },
   {
     id: "5",
+    issueNumber: 5,
     title: "Add user profile page",
     description: "Create a dedicated user profile page with edit functionality",
     status: "in-progress",
@@ -99,6 +104,7 @@ export const mockIssues: Issue[] = [
   },
   {
     id: "6",
+    issueNumber: 6,
     title: "Fix responsive layout",
     description: "Dashboard is not responsive on mobile devices",
     status: "todo",

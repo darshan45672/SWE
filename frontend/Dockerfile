@@ -4,6 +4,9 @@ FROM node:24-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Install dependencies required for building
+RUN apk add --no-cache libc6-compat
+
 # Copy package files
 COPY package*.json ./
 
@@ -13,7 +16,9 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the Next.js application
+# Build the Next.js application with increased memory
+# Set NODE_OPTIONS to increase heap size for the build process
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # Production stage
@@ -25,17 +30,19 @@ WORKDIR /app
 # Set NODE_ENV to production
 ENV NODE_ENV=production
 
+# Install dependencies required for running
+RUN apk add --no-cache libc6-compat
+
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies (use npm install since no package-lock.json)
+# Install only production dependencies
 RUN npm install --production
 
 # Copy built application from builder stage
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/package.json ./package.json
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -50,9 +57,13 @@ USER nextjs
 # Expose the application port
 EXPOSE 3000
 
+# Set environment variable for port
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start the application
+# Start the application using npm start
 CMD ["npm", "start"]
