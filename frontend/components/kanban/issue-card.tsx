@@ -97,6 +97,9 @@ export function IssueCard({ issue }: IssueCardProps) {
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
+                <Badge variant="outline" className="text-xs font-mono px-1.5 py-0 h-5 bg-muted/50">
+                  #{issue.issueNumber}
+                </Badge>
                 <Badge variant="outline" className={cn("text-xs cursor-pointer", typeColors[issue.type])}>
                   {issue.type}
                 </Badge>

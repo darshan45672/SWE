@@ -9,10 +9,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { CreateProjectDialog } from "./create-project-dialog";
+import { ProjectSettingsMenu } from "./project-settings-menu";
 
 interface ProjectSwitcherProps {
   className?: string;
@@ -26,39 +34,70 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          role="combobox"
-          className={cn("justify-between gap-2 px-3 w-full", className)}
-        >
-          <div className="flex items-center gap-2">
-            <FolderKanban className="h-4 w-4" />
-            <span className="font-medium">{currentProject.name}</span>
-          </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[250px]" align="start">
-        <DropdownMenuLabel>Projects</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {projects.map((project) => (
-          <DropdownMenuItem
-            key={project.id}
-            onSelect={() => switchProject(project.id)}
-            className="flex items-center gap-2"
-          >
-            <FolderKanban className="h-4 w-4" />
-            <span className="flex-1">{project.name}</span>
-            {currentProject.id === project.id && (
-              <Check className="h-4 w-4" />
-            )}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <CreateProjectDialog />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2">
+      <TooltipProvider>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  role="combobox"
+                  className={cn("justify-between gap-2 px-3 flex-1 min-w-0", className)}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <FolderKanban className="h-4 w-4 shrink-0" />
+                    <span className="font-medium truncate">{currentProject.name}</span>
+                    <Badge 
+                      variant={currentProject.isActive ? "default" : "secondary"}
+                      className="text-[10px] px-1.5 py-0 h-4 shrink-0"
+                    >
+                      {currentProject.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="start" className="max-w-[300px]">
+              <p className="font-medium">{currentProject.name}</p>
+            </TooltipContent>
+          </Tooltip>
+        <DropdownMenuContent className="w-[250px]" align="start">
+          <DropdownMenuLabel>Projects</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {projects.map((project) => (
+            <DropdownMenuItem
+              key={project.id}
+              onSelect={() => switchProject(project.id)}
+              className="flex items-center gap-2"
+            >
+              <FolderKanban className="h-4 w-4 shrink-0" />
+              <span className="flex-1 truncate min-w-0">{project.name}</span>
+              <Badge 
+                variant={project.isActive ? "default" : "secondary"}
+                className="text-[10px] px-1.5 py-0 h-4 shrink-0"
+              >
+                {project.isActive ? "Active" : "Inactive"}
+              </Badge>
+              {currentProject.id === project.id && (
+                <Check className="h-4 w-4 shrink-0" />
+              )}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <CreateProjectDialog />
+        </DropdownMenuContent>
+        </DropdownMenu>
+      </TooltipProvider>
+      
+      {/* Project Settings Menu */}
+      <ProjectSettingsMenu
+        projectId={currentProject.id}
+        projectName={currentProject.name}
+        projectDescription={currentProject.description}
+        projectIsActive={currentProject.isActive}
+      />
+    </div>
   );
 }

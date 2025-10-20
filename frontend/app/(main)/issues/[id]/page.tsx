@@ -139,6 +139,9 @@ export default function IssueDetailsPage() {
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="text-xs font-mono px-2 py-1 bg-muted/50">
+                #{issue.issueNumber}
+              </Badge>
               <Badge variant="outline" className={cn("text-xs", typeColors[issue.type])}>
                 {issue.type}
               </Badge>

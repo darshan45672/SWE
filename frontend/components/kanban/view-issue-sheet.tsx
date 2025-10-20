@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calendar, Clock, Tag } from "lucide-react";
+import { Calendar, Clock, Tag, Pencil, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { Issue } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,8 @@ interface ViewIssueDialogProps {
   issue: Issue | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (issue: Issue) => void;
+  onDelete?: (issue: Issue) => void;
 }
 
 const priorityColors = {
@@ -53,8 +56,20 @@ export function ViewIssueDialog({
   issue,
   open,
   onOpenChange,
+  onEdit,
+  onDelete,
 }: ViewIssueDialogProps) {
   if (!issue) return null;
+
+  const handleEdit = () => {
+    onEdit?.(issue);
+    onOpenChange(false);
+  };
+
+  const handleDelete = () => {
+    onDelete?.(issue);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,19 +77,45 @@ export function ViewIssueDialog({
         <ScrollArea className="max-h-[85vh]">
           <div className="p-6">
             <DialogHeader>
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className={cn("text-xs", typeColors[issue.type])}>
-                  {typeEmoji[issue.type]} {issue.type}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={cn("text-xs", priorityColors[issue.priority])}
-                >
-                  {issue.priority}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {statusLabels[issue.status]}
-                </Badge>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={cn("text-xs", typeColors[issue.type])}>
+                    {typeEmoji[issue.type]} {issue.type}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-xs", priorityColors[issue.priority])}
+                  >
+                    {issue.priority}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {statusLabels[issue.status]}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleEdit}
+                      className="h-8 gap-2"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDelete}
+                      className="h-8 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
               </div>
               <DialogTitle className="text-2xl leading-tight pr-6">
                 {issue.title}

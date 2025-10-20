@@ -46,6 +46,8 @@ interface WorkspaceContextType {
   addWorkspace: (workspace: Workspace) => void;
   createWorkspace: (workspaceData: { name: string; description?: string; icon?: string; color?: string }) => Promise<{ success: boolean; message?: string; data?: Workspace }>;
   createProject: (projectData: { name: string; description?: string }) => Promise<{ success: boolean; message?: string; data?: any }>;
+  updateProjectApi: (projectId: string, projectData: { name?: string; description?: string; isActive?: boolean }) => Promise<{ success: boolean; message?: string; data?: Project }>;
+  deleteProjectApi: (projectId: string) => Promise<{ success: boolean; message?: string }>;
   fetchWorkspaces: () => Promise<void>;
   fetchProjects: (workspaceId: string) => Promise<void>;
   fetchIssues: (projectId: string) => Promise<void>;
@@ -1026,6 +1028,155 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Update project - Context7 pattern
+  const updateProjectApi = async (projectId: string, projectData: { name?: string; description?: string; isActive?: boolean }): Promise<{ success: boolean; message?: string; data?: Project }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    console.log('Updating project:', projectId, 'with data:', projectData);
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects/${projectId}`;
+      console.log('Sending PUT request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      console.log('Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Failed to update project:', data.message);
+        return {
+          success: false,
+          message: data.message || 'Failed to update project',
+        };
+      }
+
+      if (data.success && data.data) {
+        // Update local state
+        const updatedProject: Project = {
+          id: data.data.id,
+          name: data.data.name,
+          key: data.data.key,
+          description: data.data.description || '',
+          workspaceId: data.data.workspaceId,
+          isActive: data.data.isActive,
+          latestChoice: data.data.latestChoice,
+          createdAt: data.data.createdAt ? new Date(data.data.createdAt) : undefined,
+          updatedAt: data.data.updatedAt ? new Date(data.data.updatedAt) : undefined,
+        };
+
+        setAllProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+        
+        // Update current project if it's the one being updated
+        if (currentProject?.id === projectId) {
+          setCurrentProject(updatedProject);
+        }
+        
+        return {
+          success: true,
+          message: data.message,
+          data: updatedProject,
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error updating project:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to update project',
+      };
+    }
+  };
+
+  // Delete project - Context7 pattern
+  const deleteProjectApi = async (projectId: string): Promise<{ success: boolean; message?: string }> => {
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    console.log('Deleting project:', projectId);
+
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/projects/${projectId}`;
+      console.log('Sending DELETE request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        return {
+          success: false,
+          message: 'Invalid response from server',
+        };
+      }
+
+      if (!response.ok) {
+        console.error('Failed to delete project:', data.message);
+        return {
+          success: false,
+          message: data.message || 'Failed to delete project',
+        };
+      }
+
+      if (data.success) {
+        // Remove from local state
+        setAllProjects(prev => prev.filter(p => p.id !== projectId));
+        
+        // If current project is deleted, switch to another project
+        if (currentProject?.id === projectId) {
+          const remainingProjects = allProjects.filter(p => p.id !== projectId && p.workspaceId === currentWorkspace?.id);
+          setCurrentProject(remainingProjects[0] || null);
+        }
+        
+        return {
+          success: true,
+          message: data.message || 'Project deleted successfully',
+        };
+      }
+
+      return { success: false, message: 'Unexpected response format' };
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to delete project',
+      };
+    }
+  };
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1044,6 +1195,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         addWorkspace,
         createWorkspace,
         createProject,
+        updateProjectApi,
+        deleteProjectApi,
         fetchWorkspaces,
         fetchProjects,
         fetchIssues,

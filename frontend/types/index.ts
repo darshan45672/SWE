@@ -22,6 +22,7 @@ export interface User {
 
 export interface Issue {
   id: string;
+  issueNumber: number;
   title: string;
   description: string;
   status: IssueStatus;

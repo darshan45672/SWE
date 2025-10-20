@@ -222,6 +222,7 @@ export function registerMCPTools(mcpServer: McpServer) {
         issues: z.array(
           z.object({
             id: z.string(),
+            issueNumber: z.number(),
             title: z.string(),
             description: z.string(),
             status: z.string(),
@@ -236,10 +237,11 @@ export function registerMCPTools(mcpServer: McpServer) {
       try {
         const issues = await prisma.issue.findMany({
           where: { projectId },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { issueNumber: 'asc' },
           take: limit,
           select: {
             id: true,
+            issueNumber: true,
             title: true,
             description: true,
             status: true,
@@ -253,6 +255,7 @@ export function registerMCPTools(mcpServer: McpServer) {
         const output = {
           issues: issues.map((issue) => ({
             id: issue.id,
+            issueNumber: issue.issueNumber,
             title: issue.title,
             description: issue.description,
             status: issue.status,
@@ -618,6 +621,7 @@ export function registerMCPTools(mcpServer: McpServer) {
         results: z.array(
           z.object({
             id: z.string(),
+            issueNumber: z.number(),
             title: z.string(),
             description: z.string(),
             status: z.string(),
@@ -637,8 +641,10 @@ export function registerMCPTools(mcpServer: McpServer) {
             ],
           },
           take: limit,
+          orderBy: { issueNumber: 'asc' },
           select: {
             id: true,
+            issueNumber: true,
             title: true,
             description: true,
             status: true,
@@ -650,6 +656,7 @@ export function registerMCPTools(mcpServer: McpServer) {
         const output = {
           results: issues.map((issue) => ({
             id: issue.id,
+            issueNumber: issue.issueNumber,
             title: issue.title,
             description: issue.description,
             status: issue.status,

@@ -11,6 +11,7 @@ export interface CreateProjectData {
 export interface UpdateProjectData {
   name?: string;
   description?: string;
+  isActive?: boolean;
 }
 
 /**
@@ -19,6 +20,7 @@ export interface UpdateProjectData {
  * @param data - Project creation data
  * @returns Created project
  */
+
 export const createProject = async (
   userId: string,
   data: CreateProjectData
@@ -43,11 +45,8 @@ export const createProject = async (
       },
     });
 
-    // If this is the first project, set latestChoice to true
-    const isFirstProject = existingProjects.length === 0;
-
-    // If this is NOT the first project, set all other projects' latestChoice to false
-    if (!isFirstProject) {
+    // If there are existing projects, set their latestChoice to false
+    if (existingProjects.length > 0) {
       await prisma.project.updateMany({
         where: {
           workspaceId: data.workspaceId,
@@ -58,14 +57,14 @@ export const createProject = async (
       });
     }
 
-    // Create project
+    // Create project with isActive and latestChoice both set to true
     const project = await prisma.project.create({
       data: {
         name: data.name,
         description: data.description,
         workspaceId: data.workspaceId,
         isActive: true,
-        latestChoice: isFirstProject, // Set to true only for first project
+        latestChoice: true, // Always set to true for new projects
       },
     });
 
@@ -204,6 +203,7 @@ export const updateProject = async (
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
       },
     });
 

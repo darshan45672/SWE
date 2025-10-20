@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,86 +13,84 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { Issue } from "@/types";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
-interface DeleteIssueAlertProps {
-  issue: Issue | null;
+interface DeleteProjectAlertProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  projectId: string;
+  projectName: string;
   onSuccess?: () => void;
 }
 
-export function DeleteIssueAlert({
-  issue,
+export function DeleteProjectAlert({
   open,
   onOpenChange,
+  projectId,
+  projectName,
   onSuccess,
-}: DeleteIssueAlertProps) {
+}: DeleteProjectAlertProps) {
   const router = useRouter();
+  const { deleteProjectApi } = useWorkspace();
   const [isDeleting, setIsDeleting] = useState(false);
-  const { deleteIssueApi } = useWorkspace();
 
   const handleDelete = async () => {
-    if (!issue) return;
-    
     setIsDeleting(true);
-    
+
     try {
-      console.log('🗑️ Deleting issue:', issue.id);
-      const result = await deleteIssueApi(issue.id);
-      
+      const result = await deleteProjectApi(projectId);
+
       if (result.success) {
-        console.log('✅ Issue deleted successfully');
-        toast.success('Issue deleted successfully', {
-          description: `"${issue.title}" has been permanently deleted.`,
-        });
-        
+        toast.success("Project deleted successfully");
         onOpenChange(false);
         
-        // Call onSuccess callback if provided
+        // Call success callback or redirect to dashboard
         if (onSuccess) {
           onSuccess();
         } else {
-          // Default: redirect to dashboard if no callback provided
-          router.push('/');
+          router.push("/dashboard");
         }
       } else {
-        console.error('❌ Failed to delete issue:', result.message);
-        toast.error('Failed to delete issue', {
-          description: result.message || 'An error occurred while deleting the issue.',
-        });
+        toast.error(result.message || "Failed to delete project");
       }
     } catch (error) {
-      console.error('❌ Delete error:', error);
-      toast.error('Failed to delete issue', {
-        description: 'An unexpected error occurred. Please try again.',
-      });
+      console.error("Error deleting project:", error);
+      toast.error("An error occurred while deleting the project");
     } finally {
       setIsDeleting(false);
     }
   };
-
-  if (!issue) return null;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the issue{" "}
-            <span className="font-semibold">&ldquo;{issue.title}&rdquo;</span> and remove all
-            associated data including comments and attachments.
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              This action cannot be undone. This will permanently delete the
+              project <span className="font-semibold">&quot;{projectName}&quot;</span> and
+              all of its associated data.
+            </p>
+            <p className="text-destructive font-medium">
+              All issues, comments, and other data within this project will be
+              permanently removed.
+            </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.preventDefault();
+              handleDelete();
+            }}
             disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Deleting..." : "Delete Issue"}
+            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Delete Project
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

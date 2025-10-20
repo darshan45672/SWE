@@ -198,9 +198,19 @@ export const createIssue = async (
     }
   }
 
+  // Get the next issue number for this project - Context7 pattern
+  const lastIssue = await prisma.issue.findFirst({
+    where: { projectId },
+    orderBy: { issueNumber: 'desc' },
+    select: { issueNumber: true },
+  });
+
+  const nextIssueNumber = (lastIssue?.issueNumber || 0) + 1;
+
   // Create issue with tags and assignee
   const issue = await prisma.issue.create({
     data: {
+      issueNumber: nextIssueNumber,
       title,
       description: description || '',
       status,
@@ -482,6 +492,8 @@ export const deleteIssue = async (issueId: string, userId: string) => {
   // Check if issue exists and user has access
   const issue = await getIssueById(issueId, userId);
 
+  console.log('🗑️  Starting deletion process for issue:', issueId);
+
   // Send notification to workspace members before deleting - Context7 pattern
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -498,12 +510,48 @@ export const deleteIssue = async (issueId: string, userId: string) => {
     // Continue even if notification fails
   }
 
-  // Delete issue
-  await prisma.issue.delete({
-    where: { id: issueId },
-  });
+  // Context7 pattern: Delete issue with all related data in a transaction
+  try {
+    await prisma.$transaction(async (tx) => {
+      console.log('🔄 Starting transaction to delete issue and related data...');
+      
+      // Step 1: Delete all issue tags
+      const deletedTags = await tx.issueTag.deleteMany({
+        where: { issueId },
+      });
+      console.log(`✅ Deleted ${deletedTags.count} issue tags`);
 
-  return { message: 'Issue deleted successfully' };
+      // Step 2: Delete all comments
+      const deletedComments = await tx.comment.deleteMany({
+        where: { issueId },
+      });
+      console.log(`✅ Deleted ${deletedComments.count} comments`);
+
+      // Step 3: Update notifications to remove issue reference (set issueId to null)
+      // instead of deleting them, so notification history is preserved
+      const updatedNotifications = await tx.notification.updateMany({
+        where: { issueId },
+        data: { issueId: null },
+      });
+      console.log(`✅ Updated ${updatedNotifications.count} notifications`);
+
+      // Step 4: Finally delete the issue itself
+      const deletedIssue = await tx.issue.delete({
+        where: { id: issueId },
+      });
+      console.log('✅ Issue deleted successfully:', deletedIssue.id);
+    });
+
+    console.log('✅ Transaction completed successfully');
+    return { message: 'Issue deleted successfully' };
+  } catch (error) {
+    console.error('❌ Failed to delete issue in transaction:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Stack trace:', error.stack);
+    }
+    throw new Error('Failed to delete issue. Please try again.');
+  }
 };
 
 // Assign issue to workspace member - Context7 pattern
