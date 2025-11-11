@@ -442,7 +442,7 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
       <div className="flex-shrink-0 border-t p-4">
         <div className="flex gap-2">
           <Input
-            placeholder="Type a message... (Use @AI to ask AI Assistant)"
+            placeholder="Type a message..."
             value={newMessage}
             onChange={(e) => {
               setNewMessage(e.target.value);
@@ -466,7 +466,7 @@ export function ChatPanel({ projectId, projectName }: ChatPanelProps) {
           </Button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Press Enter to send, Shift + Enter for new line • Use @AI to ask questions
+          Press Enter to send, Shift + Enter for new line
         </p>
       </div>
     </div>

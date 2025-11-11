@@ -1,0 +1,93 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const workspaceController = __importStar(require("../controllers/workspace"));
+const workspaceValidators = __importStar(require("../validators/workspace"));
+const middleware_1 = require("../validators/middleware");
+const middleware_2 = require("../auth/middleware");
+const router = (0, express_1.Router)();
+// All workspace routes require authentication - Context7 security pattern
+router.use(middleware_2.requireAuth);
+/**
+ * @route   POST /api/workspaces
+ * @desc    Create a new workspace
+ * @access  Private (authenticated users)
+ */
+router.post('/', workspaceValidators.createWorkspaceValidation, middleware_1.handleValidationErrors, workspaceController.createWorkspace);
+/**
+ * @route   GET /api/workspaces
+ * @desc    Get all workspaces for the authenticated user
+ * @access  Private (authenticated users)
+ */
+router.get('/', workspaceController.getWorkspaces);
+/**
+ * @route   GET /api/workspaces/:id
+ * @desc    Get a specific workspace by ID
+ * @access  Private (workspace members only)
+ */
+router.get('/:id', workspaceValidators.getWorkspaceValidation, middleware_1.handleValidationErrors, workspaceController.getWorkspaceById);
+/**
+ * @route   PUT /api/workspaces/:id
+ * @desc    Update a workspace
+ * @access  Private (workspace owners and admins only)
+ */
+router.put('/:id', workspaceValidators.updateWorkspaceValidation, middleware_1.handleValidationErrors, workspaceController.updateWorkspace);
+/**
+ * @route   DELETE /api/workspaces/:id
+ * @desc    Delete a workspace
+ * @access  Private (workspace owners only)
+ */
+router.delete('/:id', workspaceValidators.deleteWorkspaceValidation, middleware_1.handleValidationErrors, workspaceController.deleteWorkspace);
+/**
+ * @route   PUT /api/workspaces/:id/set-latest
+ * @desc    Set workspace as latest choice
+ * @access  Private (workspace members only)
+ */
+router.put('/:id/set-latest', workspaceController.setWorkspaceAsLatest);
+/**
+ * @route   PUT /api/workspaces/:id/toggle-active
+ * @desc    Toggle workspace active status
+ * @access  Private (workspace owners only)
+ */
+router.put('/:id/toggle-active', workspaceController.toggleWorkspaceActive);
+/**
+ * @route   GET /api/workspaces/:id/members
+ * @desc    Get all members of a workspace
+ * @access  Private (workspace members only)
+ */
+router.get('/:id/members', workspaceController.getWorkspaceMembers);
+exports.default = router;
+//# sourceMappingURL=workspace.js.map

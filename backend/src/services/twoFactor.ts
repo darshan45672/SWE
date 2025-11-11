@@ -20,8 +20,8 @@ export interface TwoFactorSetup {
 export async function generateTwoFactorSecret(userId: string, userEmail: string, userName: string): Promise<TwoFactorSetup> {
   // Generate secret
   const secret = speakeasy.generateSecret({
-    name: `SWE (${userEmail})`,
-    issuer: 'SWE Project Management',
+    name: `Koddera (${userEmail})`,
+    issuer: 'Koddera',
     length: 32
   });
 

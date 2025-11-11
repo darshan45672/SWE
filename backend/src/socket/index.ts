@@ -204,8 +204,8 @@ export function initializeSocket(httpServer: HttpServer): TypedServer {
           return;
         }
 
-        // Check if message mentions AI
-        const isAIMention = AIService.isAIMention(content);
+        // Check if message mentions AI - DISABLED
+        // const isAIMention = AIService.isAIMention(content);
 
         // Save user message to database
         const userMessage = await prisma.message.create({
@@ -251,6 +251,7 @@ export function initializeSocket(httpServer: HttpServer): TypedServer {
 
         callback?.({ success: true, message: userMessageData });
 
+        /* AI FUNCTIONALITY DISABLED
         // Handle AI mention
         if (isAIMention && aiService.isAvailable()) {
           console.log(`🤖 AI mentioned by ${socket.data.userName}`);
@@ -405,6 +406,7 @@ export function initializeSocket(httpServer: HttpServer): TypedServer {
 
           io.to(`project:${projectId}`).emit('message:new', notAvailableMessageData);
         }
+        */ // END AI FUNCTIONALITY DISABLED
       } catch (error) {
         console.error('Error sending message:', error);
         callback?.({ success: false, error: 'Failed to send message' });

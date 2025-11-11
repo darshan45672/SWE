@@ -1,6 +1,6 @@
-# SWE Project Management API
+# Koddera API
 
-A Node.js TypeScript backend API for the SWE Project Management application using Prisma ORM and PostgreSQL.
+A Node.js TypeScript backend API for the Koddera application using Prisma ORM and PostgreSQL.
 
 ## 🚀 Features
 

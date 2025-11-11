@@ -1,0 +1,6 @@
+export declare const updateProfileValidation: import("express-validator").ValidationChain[];
+export declare const deleteAccountValidation: import("express-validator").ValidationChain[];
+export declare const updatePasswordValidation: import("express-validator").ValidationChain[];
+export declare const forgotPasswordValidation: import("express-validator").ValidationChain[];
+export declare const resetPasswordValidation: import("express-validator").ValidationChain[];
+//# sourceMappingURL=profile.d.ts.map

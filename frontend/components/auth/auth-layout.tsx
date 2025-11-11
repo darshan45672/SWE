@@ -23,7 +23,7 @@ export function AuthLayout({ children, title, description }: AuthLayoutProps) {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-foreground/20">
               <FolderKanban className="h-6 w-6" />
             </div>
-            <span className="text-2xl font-bold">ProjectManager</span>
+            <span className="text-2xl font-bold">Koddera</span>
           </Link>
         </div>
 
@@ -37,7 +37,7 @@ export function AuthLayout({ children, title, description }: AuthLayoutProps) {
         </div>
 
         <div className="relative z-10 text-sm text-primary-foreground/60">
-          © 2025 ProjectManager. All rights reserved.
+          © 2025 Koddera. All rights reserved.
         </div>
       </div>
 
@@ -50,7 +50,7 @@ export function AuthLayout({ children, title, description }: AuthLayoutProps) {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
                 <FolderKanban className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-bold">ProjectManager</span>
+              <span className="text-2xl font-bold">Koddera</span>
             </Link>
           </div>
 

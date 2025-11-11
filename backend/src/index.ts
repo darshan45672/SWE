@@ -78,7 +78,7 @@ app.use('/api/v1/chat', chatRoutes)
 // API routes
 app.get('/api/v1', (req, res) => {
   res.json({ 
-    message: 'SWE Project Management API',
+    message: 'Koddera API',
     version: '1.0.0',
     endpoints: {
       health: '/health',

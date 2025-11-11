@@ -37,11 +37,11 @@ const emailTemplates = {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to ProjectManager!</h1>
+              <h1>Welcome to Koddera!</h1>
             </div>
             <div class="content">
               <p>Hi ${name},</p>
-              <p>Thank you for registering with ProjectManager! We're excited to have you on board.</p>
+              <p>Thank you for registering with Koddera! We're excited to have you on board.</p>
               <p>To complete your registration and start using all features, please verify your email address by clicking the button below:</p>
               <div style="text-align: center;">
                 <a href="${verificationUrl}" class="button">Verify Email Address</a>
@@ -49,11 +49,11 @@ const emailTemplates = {
               <p>Or copy and paste this link into your browser:</p>
               <p style="word-break: break-all; color: #667eea;">${verificationUrl}</p>
               <p><strong>This link will expire in 24 hours.</strong></p>
-              <p>If you didn't create an account with ProjectManager, you can safely ignore this email.</p>
-              <p>Best regards,<br>The ProjectManager Team</p>
+              <p>If you didn't create an account with Koddera, you can safely ignore this email.</p>
+              <p>Best regards,<br>The Koddera Team</p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} ProjectManager. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} Koddera. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -62,7 +62,7 @@ const emailTemplates = {
     text: `
 Hi ${name},
 
-Thank you for registering with ProjectManager!
+Thank you for registering with Koddera!
 
 To complete your registration, please verify your email address by visiting:
 ${verificationUrl}
@@ -72,7 +72,7 @@ This link will expire in 24 hours.
 If you didn't create an account, you can safely ignore this email.
 
 Best regards,
-The ProjectManager Team
+The Koddera Team
     `.trim(),
   }),
 
@@ -102,7 +102,7 @@ The ProjectManager Team
               <div class="success-icon">✅</div>
               <p>Hi ${name},</p>
               <p>Your email address has been successfully verified!</p>
-              <p>You now have full access to all ProjectManager features:</p>
+              <p>You now have full access to all Koddera features:</p>
               <ul>
                 <li>Create and manage workspaces</li>
                 <li>Collaborate on projects</li>
@@ -113,10 +113,10 @@ The ProjectManager Team
               <div style="text-align: center;">
                 <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/signin" class="button">Sign In Now</a>
               </div>
-              <p>Best regards,<br>The ProjectManager Team</p>
+              <p>Best regards,<br>The Koddera Team</p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} ProjectManager. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} Koddera. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -127,12 +127,12 @@ Hi ${name},
 
 Your email address has been successfully verified!
 
-You now have full access to all ProjectManager features.
+You now have full access to all Koddera features.
 
 Sign in at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/signin
 
 Best regards,
-The ProjectManager Team
+The Koddera Team
     `.trim(),
   }),
 
@@ -160,7 +160,7 @@ The ProjectManager Team
             </div>
             <div class="content">
               <p>Hi ${name},</p>
-              <p>We received a request to reset your password for your ProjectManager account.</p>
+              <p>We received a request to reset your password for your Koddera account.</p>
               <p>Click the button below to reset your password:</p>
               <div style="text-align: center;">
                 <a href="${resetUrl}" class="button">Reset Password</a>
@@ -171,10 +171,10 @@ The ProjectManager Team
               <div class="warning">
                 <strong>⚠️ Security Notice:</strong> If you didn't request a password reset, please ignore this email and ensure your account is secure.
               </div>
-              <p>Best regards,<br>The ProjectManager Team</p>
+              <p>Best regards,<br>The Koddera Team</p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} ProjectManager. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} Koddera. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -183,7 +183,7 @@ The ProjectManager Team
     text: `
 Hi ${name},
 
-We received a request to reset your password for your ProjectManager account.
+We received a request to reset your password for your Koddera account.
 
 Reset your password by visiting:
 ${resetUrl}
@@ -193,7 +193,7 @@ This link will expire in 1 hour.
 If you didn't request a password reset, please ignore this email.
 
 Best regards,
-The ProjectManager Team
+The Koddera Team
     `.trim(),
   }),
 
@@ -228,7 +228,7 @@ The ProjectManager Team
               </div>
               ${isNewUser ? `
               <div class="info-box">
-                <strong>📝 New to ProjectManager?</strong>
+                <strong>📝 New to Koddera?</strong>
                 <p>You'll need to create an account and verify your email before you can accept this invitation. Don't worry, it only takes a minute!</p>
               </div>
               ` : `
@@ -242,10 +242,10 @@ The ProjectManager Team
               <p>Or copy and paste this link into your browser:</p>
               <p style="word-break: break-all; color: #667eea;">${invitationUrl}</p>
               <p style="color: #666; font-size: 14px;"><strong>Note:</strong> This invitation will expire in 7 days.</p>
-              <p>Best regards,<br>The ProjectManager Team</p>
+              <p>Best regards,<br>The Koddera Team</p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} ProjectManager. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} Koddera. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -254,7 +254,7 @@ The ProjectManager Team
     text: `
 Hi there!
 
-${inviterName} has invited you to join ${workspaceName} on ProjectManager.
+${inviterName} has invited you to join ${workspaceName} on Koddera.
 
 ${isNewUser ? 
   'You\'ll need to create an account and verify your email before you can accept this invitation.' : 
@@ -267,7 +267,7 @@ ${invitationUrl}
 This invitation will expire in 7 days.
 
 Best regards,
-The ProjectManager Team
+The Koddera Team
     `.trim(),
   }),
 };

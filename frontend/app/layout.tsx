@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProjectManager - Kanban Board",
+  title: "Koddera - Kanban Board",
   description: "A modern project management tool with kanban board",
 };
 
